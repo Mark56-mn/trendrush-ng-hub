@@ -10,33 +10,44 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicMoniepointWebhookRouteImport } from './routes/api/public/moniepoint-webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMoniepointWebhookRoute =
+  ApiPublicMoniepointWebhookRouteImport.update({
+    id: '/api/public/moniepoint-webhook',
+    path: '/api/public/moniepoint-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/public/moniepoint-webhook'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/public/moniepoint-webhook'
+  id: '__root__' | '/' | '/api/public/moniepoint-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicMoniepointWebhookRoute: typeof ApiPublicMoniepointWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +59,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/moniepoint-webhook': {
+      id: '/api/public/moniepoint-webhook'
+      path: '/api/public/moniepoint-webhook'
+      fullPath: '/api/public/moniepoint-webhook'
+      preLoaderRoute: typeof ApiPublicMoniepointWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicMoniepointWebhookRoute: ApiPublicMoniepointWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
