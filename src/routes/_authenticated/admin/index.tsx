@@ -327,16 +327,17 @@ function Input({
 
 function ImageThumb({ path }: { path: string }) {
   const [url, setUrl] = useState<string>("");
-  useState(() => {
+  useEffect(() => {
+    if (!path) return;
     if (path.startsWith("http")) {
       setUrl(path);
-    } else {
-      supabase.storage
-        .from("product-images")
-        .createSignedUrl(path, 3600)
-        .then(({ data }) => data?.signedUrl && setUrl(data.signedUrl));
+      return;
     }
-    return undefined;
-  });
+    supabase.storage
+      .from("product-images")
+      .createSignedUrl(path, 3600)
+      .then(({ data }) => data?.signedUrl && setUrl(data.signedUrl));
+  }, [path]);
   return url ? <img src={url} alt="" className="h-full w-full object-cover" /> : null;
 }
+
