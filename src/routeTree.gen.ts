@@ -10,11 +10,29 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProductIdRouteImport } from './routes/product.$id'
+import { Route as CheckoutOrderIdRouteImport } from './routes/checkout.$orderId'
+import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as ApiPublicMoniepointWebhookRouteImport } from './routes/api/public/moniepoint-webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductIdRoute = ProductIdRouteImport.update({
+  id: '/product/$id',
+  path: '/product/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutOrderIdRoute = CheckoutOrderIdRouteImport.update({
+  id: '/checkout/$orderId',
+  path: '/checkout/$orderId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategorySlugRoute = CategorySlugRouteImport.update({
+  id: '/category/$slug',
+  path: '/category/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicMoniepointWebhookRoute =
@@ -26,27 +44,55 @@ const ApiPublicMoniepointWebhookRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/category/$slug': typeof CategorySlugRoute
+  '/checkout/$orderId': typeof CheckoutOrderIdRoute
+  '/product/$id': typeof ProductIdRoute
   '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/category/$slug': typeof CategorySlugRoute
+  '/checkout/$orderId': typeof CheckoutOrderIdRoute
+  '/product/$id': typeof ProductIdRoute
   '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/category/$slug': typeof CategorySlugRoute
+  '/checkout/$orderId': typeof CheckoutOrderIdRoute
+  '/product/$id': typeof ProductIdRoute
   '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/moniepoint-webhook'
+  fullPaths:
+    | '/'
+    | '/category/$slug'
+    | '/checkout/$orderId'
+    | '/product/$id'
+    | '/api/public/moniepoint-webhook'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/moniepoint-webhook'
-  id: '__root__' | '/' | '/api/public/moniepoint-webhook'
+  to:
+    | '/'
+    | '/category/$slug'
+    | '/checkout/$orderId'
+    | '/product/$id'
+    | '/api/public/moniepoint-webhook'
+  id:
+    | '__root__'
+    | '/'
+    | '/category/$slug'
+    | '/checkout/$orderId'
+    | '/product/$id'
+    | '/api/public/moniepoint-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CategorySlugRoute: typeof CategorySlugRoute
+  CheckoutOrderIdRoute: typeof CheckoutOrderIdRoute
+  ProductIdRoute: typeof ProductIdRoute
   ApiPublicMoniepointWebhookRoute: typeof ApiPublicMoniepointWebhookRoute
 }
 
@@ -57,6 +103,27 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/product/$id': {
+      id: '/product/$id'
+      path: '/product/$id'
+      fullPath: '/product/$id'
+      preLoaderRoute: typeof ProductIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$orderId': {
+      id: '/checkout/$orderId'
+      path: '/checkout/$orderId'
+      fullPath: '/checkout/$orderId'
+      preLoaderRoute: typeof CheckoutOrderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/category/$slug': {
+      id: '/category/$slug'
+      path: '/category/$slug'
+      fullPath: '/category/$slug'
+      preLoaderRoute: typeof CategorySlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/moniepoint-webhook': {
@@ -71,6 +138,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CategorySlugRoute: CategorySlugRoute,
+  CheckoutOrderIdRoute: CheckoutOrderIdRoute,
+  ProductIdRoute: ProductIdRoute,
   ApiPublicMoniepointWebhookRoute: ApiPublicMoniepointWebhookRoute,
 }
 export const routeTree = rootRouteImport
