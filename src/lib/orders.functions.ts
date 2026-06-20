@@ -65,6 +65,25 @@ export const getMyOrders = createServerFn({ method: "GET" })
     );
   });
 
+export const setOrderSenderName = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        senderName: z.string().trim().min(2).max(120),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.rpc("set_order_sender_name", {
+      _id: data.id,
+      _sender_name: data.senderName,
+    });
+    if (error) throw error;
+    return { ok: true };
+  });
+
 export const getOrderById = createServerFn({ method: "GET" })
   .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {

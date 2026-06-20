@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { getOrderById } from "@/lib/orders.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { getOrderById, setOrderSenderName } from "@/lib/orders.functions";
 import { getSettings } from "@/lib/shop.functions";
 import { formatNaira } from "@/lib/format";
-import { Copy, Check, Loader2 } from "lucide-react";
+import { Copy, Check, Loader2, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/checkout/$orderId")({
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/checkout/$orderId")({
 function Checkout() {
   const { orderId } = Route.useParams();
   const router = useRouter();
+  const saveSender = useServerFn(setOrderSenderName);
   const { data: order } = useSuspenseQuery(
     queryOptions({
       queryKey: ["order", orderId],
@@ -38,6 +40,10 @@ function Checkout() {
     queryOptions({ queryKey: ["settings"], queryFn: () => getSettings() }),
   );
   const [copied, setCopied] = useState<string | null>(null);
+  const [senderName, setSenderName] = useState(order?.sender_name ?? "");
+  const [confirmed, setConfirmed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   if (!order) {
     return (
@@ -55,6 +61,29 @@ function Checkout() {
     setCopied(label);
     setTimeout(() => setCopied(null), 1500);
   };
+
+  const hasSender = !!order.sender_name?.trim();
+
+  async function handleSave() {
+    setErr(null);
+    if (senderName.trim().length < 2) {
+      setErr("Please enter the sender's full name as it appears on the bank account.");
+      return;
+    }
+    if (!confirmed) {
+      setErr("Please confirm you will send the EXACT amount shown.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await saveSender({ data: { id: orderId, senderName: senderName.trim() } });
+      await router.invalidate();
+    } catch (e: any) {
+      setErr(e?.message ?? "Could not save sender name");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -77,12 +106,76 @@ function Checkout() {
           )}
         </div>
 
-        {order.status === "pending" && (
+        {order.status === "pending" && !hasSender && (
+          <div className="mt-5 space-y-4 rounded-lg border border-orange/40 bg-orange/5 p-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange" />
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-orange">Before you transfer</p>
+                <p className="text-xs text-muted-foreground">
+                  We match your payment using <strong>your bank account name</strong> and the{" "}
+                  <strong>exact amount</strong>. If they don't match, your order will not be
+                  auto-confirmed.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Sender's full name (as on your bank account)
+              </label>
+              <input
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder="e.g. Barack Hussein Obama"
+                className="mt-1 w-full rounded-md border border-input bg-input px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                This MUST match the name on the bank account you are paying from.
+              </p>
+            </div>
+
+            <label className="flex cursor-pointer items-start gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-[color:var(--color-neon)]"
+              />
+              <span className="text-muted-foreground">
+                I confirm I will send the <strong className="text-neon">EXACT amount</strong>{" "}
+                shown below — not a rounded or different amount.
+              </span>
+            </label>
+
+            {err && (
+              <div className="rounded-md border border-destructive bg-destructive/10 p-2 text-xs text-destructive">
+                {err}
+              </div>
+            )}
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-neon px-4 py-3 font-bold text-neon-foreground shadow-neon disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Save & show bank details
+            </button>
+          </div>
+        )}
+
+        {order.status === "pending" && hasSender && (
           <>
             <div className="mt-5 rounded-lg border border-orange/40 bg-orange/5 p-4">
-              <p className="text-sm font-semibold text-orange">
-                Transfer the EXACT amount below so we can auto-confirm your payment.
-              </p>
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange" />
+                <p className="text-sm font-semibold text-orange">
+                  Transfer the EXACT amount from the account of{" "}
+                  <span className="text-neon">{order.sender_name}</span> to auto-confirm.
+                  Wrong name or wrong amount = manual review.
+                </p>
+              </div>
             </div>
 
             <div className="mt-5 space-y-3">
@@ -109,6 +202,12 @@ function Checkout() {
               <Field
                 label="Account name"
                 value={settings?.account_name || "— set in admin —"}
+                onCopy={copy}
+                copied={copied}
+              />
+              <Field
+                label="Your sender name"
+                value={order.sender_name ?? ""}
                 onCopy={copy}
                 copied={copied}
               />
