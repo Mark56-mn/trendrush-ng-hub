@@ -52,6 +52,7 @@ export type Database = {
           paid_at: string | null
           product_id: string
           quantity: number
+          sender_name: string | null
           status: Database["public"]["Enums"]["order_status"]
           unique_amount: number
           user_id: string | null
@@ -66,6 +67,7 @@ export type Database = {
           paid_at?: string | null
           product_id: string
           quantity?: number
+          sender_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           unique_amount: number
           user_id?: string | null
@@ -80,6 +82,7 @@ export type Database = {
           paid_at?: string | null
           product_id?: string
           quantity?: number
+          sender_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           unique_amount?: number
           user_id?: string | null
@@ -279,6 +282,7 @@ export type Database = {
           id: string
           paid_at: string
           product_id: string
+          sender_name: string
           status: Database["public"]["Enums"]["order_status"]
           unique_amount: number
         }[]
@@ -289,6 +293,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      set_order_sender_name: {
+        Args: { _id: string; _sender_name: string }
+        Returns: undefined
       }
     }
     Enums: {

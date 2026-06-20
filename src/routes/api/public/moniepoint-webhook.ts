@@ -41,6 +41,20 @@ export const Route = createFileRoute("/api/public/moniepoint-webhook")({
           payload.transactionReference ??
           payload.transaction?.reference ??
           null;
+        const senderNameRaw =
+          payload.senderName ??
+          payload.sender_name ??
+          payload.payerName ??
+          payload.payer_name ??
+          payload.originatorName ??
+          payload.sourceAccountName ??
+          payload.data?.senderName ??
+          payload.data?.payerName ??
+          payload.data?.sourceAccountName ??
+          payload.transaction?.senderName ??
+          payload.transaction?.payerName ??
+          "";
+        const senderName = String(senderNameRaw).trim();
         if (rawAmount == null) return new Response("Missing amount", { status: 400 });
 
         const amountNum = Number(rawAmount);
@@ -50,21 +64,27 @@ export const Route = createFileRoute("/api/public/moniepoint-webhook")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Match the most recent pending order with this exact unique amount.
-        const { data: order } = await supabaseAdmin
+        // Find all pending orders matching this exact unique amount, then
+        // narrow by sender name (case-insensitive, trimmed). Sender name
+        // must match what the buyer declared on the checkout page.
+        const { data: candidates } = await supabaseAdmin
           .from("orders")
-          .select("id")
+          .select("id, sender_name, created_at")
           .eq("status", "pending")
           .eq("unique_amount", amountInNaira)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .order("created_at", { ascending: false });
+
+        const norm = (s: string | null | undefined) =>
+          String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+        const senderKey = norm(senderName);
+        const order =
+          (candidates ?? []).find((c) => senderKey && norm(c.sender_name) === senderKey) ?? null;
 
         await supabaseAdmin.from("payments").insert({
           order_id: order?.id ?? null,
           amount: amountInNaira,
           reference,
-          raw_payload: payload,
+          raw_payload: { ...payload, _matched_sender: senderName, _amount_naira: amountInNaira },
         });
 
         if (order) {
