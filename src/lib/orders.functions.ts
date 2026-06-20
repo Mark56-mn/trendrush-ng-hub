@@ -65,12 +65,27 @@ export const getMyOrders = createServerFn({ method: "GET" })
     );
   });
 
+// Keep in sync with the webhook's `norm()` so saved names match incoming
+// Moniepoint payloads after both sides apply the same transform.
+export function normalizeSenderName(raw: string): string {
+  return raw
+    .normalize("NFKC")
+    .replace(/[^\p{L}\s'.\-]/gu, "") // letters, spaces, apostrophe, period, hyphen only
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export const setOrderSenderName = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
         id: z.string().uuid(),
-        senderName: z.string().trim().min(2).max(120),
+        senderName: z
+          .string()
+          .max(120)
+          .transform((s) => normalizeSenderName(s))
+          .refine((s) => s.length >= 3, "Sender name is too short")
+          .refine((s) => s.split(" ").length >= 2, "Enter your full name (first and last)"),
       })
       .parse(input),
   )
@@ -81,7 +96,7 @@ export const setOrderSenderName = createServerFn({ method: "POST" })
       _sender_name: data.senderName,
     });
     if (error) throw error;
-    return { ok: true };
+    return { ok: true, senderName: data.senderName };
   });
 
 export const getOrderById = createServerFn({ method: "GET" })
