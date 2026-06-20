@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getOrderById, setOrderSenderName } from "@/lib/orders.functions";
+import { getOrderById, setOrderSenderName, normalizeSenderName } from "@/lib/orders.functions";
 import { getSettings } from "@/lib/shop.functions";
 import { formatNaira } from "@/lib/format";
 import { Copy, Check, Loader2, AlertTriangle } from "lucide-react";
@@ -64,10 +64,13 @@ function Checkout() {
 
   const hasSender = !!order.sender_name?.trim();
 
+  const normalized = normalizeSenderName(senderName);
+  const nameValid = normalized.length >= 3 && normalized.split(" ").length >= 2;
+
   async function handleSave() {
     setErr(null);
-    if (senderName.trim().length < 2) {
-      setErr("Please enter the sender's full name as it appears on the bank account.");
+    if (!nameValid) {
+      setErr("Enter your full name (first and last) exactly as on your bank account.");
       return;
     }
     if (!confirmed) {
@@ -76,7 +79,7 @@ function Checkout() {
     }
     setSaving(true);
     try {
-      await saveSender({ data: { id: orderId, senderName: senderName.trim() } });
+      await saveSender({ data: { id: orderId, senderName: normalized } });
       await router.invalidate();
     } catch (e: any) {
       setErr(e?.message ?? "Could not save sender name");
@@ -133,6 +136,14 @@ function Checkout() {
               <p className="mt-1 text-[11px] text-muted-foreground">
                 This MUST match the name on the bank account you are paying from.
               </p>
+              {senderName && (
+                <p className="mt-1 text-[11px]">
+                  <span className="text-muted-foreground">We'll match: </span>
+                  <span className={nameValid ? "font-mono text-neon" : "font-mono text-orange"}>
+                    {normalized || "—"}
+                  </span>
+                </p>
+              )}
             </div>
 
             <label className="flex cursor-pointer items-start gap-2 text-xs">
