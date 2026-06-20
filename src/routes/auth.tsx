@@ -23,7 +23,8 @@ function AuthPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { redirect } = useSearch({ from: "/auth" });
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
+  const [forgotSent, setForgotSent] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
