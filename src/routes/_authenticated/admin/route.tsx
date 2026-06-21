@@ -1,8 +1,8 @@
-import { createFileRoute, Outlet, Link, redirect, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { isAdmin } from "@/lib/admin.functions";
-import { Package, Receipt, Settings as Cog } from "lucide-react";
+import { LayoutDashboard, Package, Receipt, Settings as Cog } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
