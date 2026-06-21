@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/format";
 import { Pencil, Trash2, Plus, X, Upload } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/admin/")({
+export const Route = createFileRoute("/_authenticated/admin/products")({
   component: AdminProducts,
 });
 
