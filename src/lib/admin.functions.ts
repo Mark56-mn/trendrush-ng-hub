@@ -73,6 +73,92 @@ export const adminDashboardStats = createServerFn({ method: "GET" })
     };
   });
 
+function decodeHtml(value: string) {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function firstMeta(html: string, names: string[]) {
+  for (const name of names) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const patterns = [
+      new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`, "i"),
+      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, "i"),
+    ];
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) return decodeHtml(match[1].trim());
+    }
+  }
+  return "";
+}
+
+function firstJsonLd(html: string) {
+  const blocks = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const block of blocks) {
+    try {
+      const parsed = JSON.parse(block[1].trim());
+      const items = Array.isArray(parsed) ? parsed : [parsed, ...(parsed?.['@graph'] ?? [])];
+      const product = items.find((item) => {
+        const type = item?.['@type'];
+        return type === "Product" || (Array.isArray(type) && type.includes("Product"));
+      });
+      if (product) return product;
+    } catch {
+      // Ignore malformed merchant metadata and fall back to meta tags.
+    }
+  }
+  return null;
+}
+
+function absoluteUrl(url: string, base: string) {
+  try {
+    return new URL(url, base).toString();
+  } catch {
+    return url;
+  }
+}
+
+export const importProductFromUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ url: z.string().trim().url().max(2000) }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const response = await fetch(data.url, {
+      headers: {
+        "user-agent": "Mozilla/5.0 (compatible; TrendRushNGImporter/1.0)",
+        accept: "text/html,application/xhtml+xml",
+      },
+    });
+    if (!response.ok) throw new Error(`Could not read product page (${response.status})`);
+    const html = await response.text();
+    const jsonLd = firstJsonLd(html);
+    const title = String(jsonLd?.name ?? firstMeta(html, ["og:title", "twitter:title"]) ?? "").trim();
+    const description = String(jsonLd?.description ?? firstMeta(html, ["og:description", "twitter:description", "description"]) ?? "").trim();
+    const imageValue = jsonLd?.image;
+    const rawImages = Array.isArray(imageValue) ? imageValue : imageValue ? [imageValue] : [firstMeta(html, ["og:image", "twitter:image"])];
+    const image_urls = rawImages
+      .map((image) => (typeof image === "string" ? image : image?.url))
+      .filter(Boolean)
+      .slice(0, 8)
+      .map((image: string) => absoluteUrl(image, data.url));
+    const offer = Array.isArray(jsonLd?.offers) ? jsonLd.offers[0] : jsonLd?.offers;
+    const detectedPrice = Number.parseFloat(String(offer?.price ?? firstMeta(html, ["product:price:amount", "og:price:amount"]) ?? ""));
+    const detectedCurrency = String(offer?.priceCurrency ?? firstMeta(html, ["product:price:currency", "og:price:currency"]) ?? "").toUpperCase();
+    return {
+      title,
+      description,
+      image_urls,
+      source_url: data.url,
+      detected_price: Number.isFinite(detectedPrice) ? detectedPrice : null,
+      detected_currency: detectedCurrency || null,
+    };
+  });
+
 export const adminListProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -101,6 +187,10 @@ const productInput = z.object({
   is_trending: z.boolean().default(false),
   is_active: z.boolean().default(true),
   stock: z.number().int().min(0).default(0),
+  source_url: z.string().trim().url().max(2000).optional().nullable(),
+  product_cost_naira: z.number().int().min(0).max(100_000_000).optional().nullable(),
+  shipping_cost_naira: z.number().int().min(0).max(100_000_000).optional().nullable(),
+  import_notes: z.string().trim().max(2000).optional().nullable(),
 });
 
 export const upsertProduct = createServerFn({ method: "POST" })

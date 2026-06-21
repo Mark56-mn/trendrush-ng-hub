@@ -142,6 +142,10 @@ export type Database = {
           is_active: boolean
           is_trending: boolean
           price_naira: number
+          product_cost_naira: number | null
+          shipping_cost_naira: number | null
+          source_url: string | null
+          import_notes: string | null
           slug: string
           stock: number
           title: string
@@ -156,6 +160,10 @@ export type Database = {
           is_active?: boolean
           is_trending?: boolean
           price_naira: number
+          product_cost_naira?: number | null
+          shipping_cost_naira?: number | null
+          source_url?: string | null
+          import_notes?: string | null
           slug: string
           stock?: number
           title: string
@@ -170,6 +178,10 @@ export type Database = {
           is_active?: boolean
           is_trending?: boolean
           price_naira?: number
+          product_cost_naira?: number | null
+          shipping_cost_naira?: number | null
+          source_url?: string | null
+          import_notes?: string | null
           slug?: string
           stock?: number
           title?: string

@@ -33,11 +33,11 @@ function AdminLayout() {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="mx-auto max-w-6xl px-3 pb-24 pt-4 sm:px-4 sm:py-6">
+      <div className="mb-4 flex items-center justify-between sm:mb-6">
         <h1 className="font-display text-2xl font-black text-orange">Admin</h1>
       </div>
-      <nav className="mb-6 flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1">
+      <nav className="fixed inset-x-2 bottom-2 z-40 flex gap-1 overflow-x-auto rounded-xl border border-border bg-card/95 p-1 shadow-2xl backdrop-blur sm:static sm:inset-auto sm:mb-6 sm:rounded-lg sm:bg-card sm:shadow-none">
         {tabs.map((t) => {
           const active = t.exact
             ? pathname === "/admin" || pathname === "/admin/"
@@ -47,7 +47,7 @@ function AdminLayout() {
             <Link
               key={t.to}
               to={t.to as "/admin"}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold ${
+              className={`flex min-w-[86px] flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-semibold sm:min-w-0 sm:px-3 sm:text-sm ${
                 active ? "bg-neon text-neon-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
