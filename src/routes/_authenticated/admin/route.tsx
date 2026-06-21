@@ -1,8 +1,8 @@
-import { createFileRoute, Outlet, Link, redirect, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { isAdmin } from "@/lib/admin.functions";
-import { Package, Receipt, Settings as Cog } from "lucide-react";
+import { LayoutDashboard, Package, Receipt, Settings as Cog } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
@@ -25,11 +25,12 @@ function AdminLayout() {
       </div>
     );
 
-  const tabs = [
-    { to: "/admin", label: "Products", icon: Package },
+  const tabs: { to: string; label: string; icon: typeof Package; exact?: boolean }[] = [
+    { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    { to: "/admin/products", label: "Products", icon: Package },
     { to: "/admin/orders", label: "Orders", icon: Receipt },
     { to: "/admin/settings", label: "Settings", icon: Cog },
-  ] as const;
+  ];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
@@ -38,15 +39,14 @@ function AdminLayout() {
       </div>
       <nav className="mb-6 flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1">
         {tabs.map((t) => {
-          const active =
-            t.to === "/admin"
-              ? pathname === "/admin" || pathname === "/admin/"
-              : pathname.startsWith(t.to);
+          const active = t.exact
+            ? pathname === "/admin" || pathname === "/admin/"
+            : pathname.startsWith(t.to);
           const Icon = t.icon;
           return (
             <Link
               key={t.to}
-              to={t.to}
+              to={t.to as "/admin"}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold ${
                 active ? "bg-neon text-neon-foreground" : "text-muted-foreground hover:text-foreground"
               }`}

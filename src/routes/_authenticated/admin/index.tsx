@@ -1,343 +1,232 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { adminListProducts, upsertProduct, deleteProduct } from "@/lib/admin.functions";
-import { listCategories } from "@/lib/shop.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { adminDashboardStats } from "@/lib/admin.functions";
 import { formatNaira } from "@/lib/format";
-import { Pencil, Trash2, Plus, X, Upload } from "lucide-react";
+import {
+  Package,
+  ShoppingBag,
+  Clock,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle2,
+  ArrowRight,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
-  component: AdminProducts,
+  component: AdminDashboard,
 });
 
-type Editing = {
-  id?: string;
-  title: string;
-  slug: string;
-  description: string;
-  price_naira: number;
-  category_id: string | null;
-  image_urls: string[];
-  is_trending: boolean;
-  is_active: boolean;
-  stock: number;
-};
-
-const empty: Editing = {
-  title: "",
-  slug: "",
-  description: "",
-  price_naira: 0,
-  category_id: null,
-  image_urls: [],
-  is_trending: false,
-  is_active: true,
-  stock: 0,
-};
-
-function AdminProducts() {
-  const qc = useQueryClient();
-  const listFn = useServerFn(adminListProducts);
-  const upsertFn = useServerFn(upsertProduct);
-  const delFn = useServerFn(deleteProduct);
-
-  const { data: products } = useQuery({ queryKey: ["admin", "products"], queryFn: () => listFn() });
-  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => listCategories() });
-
-  const [editing, setEditing] = useState<Editing | null>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const save = useMutation({
-    mutationFn: (data: Editing) => upsertFn({ data }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "products"] });
-      qc.invalidateQueries({ queryKey: ["products"] });
-      setEditing(null);
-    },
+function AdminDashboard() {
+  const fn = useServerFn(adminDashboardStats);
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin", "dashboard"],
+    queryFn: () => fn(),
   });
 
-  const del = useMutation({
-    mutationFn: (id: string) => delFn({ data: { id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "products"] }),
-  });
-
-  async function handleUpload(files: FileList | null) {
-    if (!files || !editing) return;
-    setUploading(true);
-    const paths: string[] = [];
-    for (const file of Array.from(files)) {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file, {
-        contentType: file.type,
-        upsert: false,
-      });
-      if (!error) paths.push(path);
-    }
-    setEditing({ ...editing, image_urls: [...editing.image_urls, ...paths] });
-    setUploading(false);
+  if (isLoading || !data) {
+    return <div className="py-16 text-center text-muted-foreground">Loading dashboard…</div>;
   }
 
+  const { products, orders } = data;
+
+  // Build sparkline from last 30d revenue, bucketed per day
+  const buckets = new Array(30).fill(0);
+  const now = Date.now();
+  for (const r of orders.paid30dSeries) {
+    const day = Math.floor((now - new Date(r.paid_at).getTime()) / 86_400_000);
+    if (day >= 0 && day < 30) buckets[29 - day] += r.base_amount ?? 0;
+  }
+  const max = Math.max(1, ...buckets);
+
   return (
-    <div>
-      <div className="mb-4 flex justify-end">
-        <button
-          onClick={() => setEditing({ ...empty })}
-          className="flex items-center gap-2 rounded-md bg-neon px-3 py-2 text-sm font-bold text-neon-foreground"
-        >
-          <Plus className="h-4 w-4" /> New product
-        </button>
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard
+          label="Revenue today"
+          value={formatNaira(orders.revenueToday)}
+          icon={TrendingUp}
+          tone="neon"
+        />
+        <StatCard
+          label="Pending orders"
+          value={orders.pending.toString()}
+          icon={Clock}
+          tone="orange"
+          to="/admin/orders"
+        />
+        <StatCard
+          label="Paid orders"
+          value={orders.paidTotal.toString()}
+          icon={CheckCircle2}
+          tone="neon"
+        />
+        <StatCard
+          label="Live products"
+          value={`${products.active} / ${products.total}`}
+          icon={Package}
+          tone="default"
+          to="/admin/products"
+        />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <table className="w-full text-sm">
-          <thead className="bg-surface text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2 text-left">Product</th>
-              <th className="px-3 py-2 text-left">Price</th>
-              <th className="px-3 py-2 text-left">Category</th>
-              <th className="px-3 py-2 text-left">Stock</th>
-              <th className="px-3 py-2 text-left">Status</th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(products ?? []).map((p: any) => (
-              <tr key={p.id} className="border-t border-border">
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-10 w-10 overflow-hidden rounded bg-surface">
-                      {p.signed_image_urls?.[0] && (
-                        <img src={p.signed_image_urls[0]} alt="" className="h-full w-full object-cover" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="font-semibold">{p.title}</div>
-                      <div className="text-xs text-muted-foreground">{p.slug}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-3 py-2">{formatNaira(p.price_naira)}</td>
-                <td className="px-3 py-2 text-muted-foreground">{p.categories?.name ?? "—"}</td>
-                <td className="px-3 py-2">{p.stock}</td>
-                <td className="px-3 py-2">
-                  {p.is_active ? (
-                    <span className="text-neon">Live</span>
-                  ) : (
-                    <span className="text-muted-foreground">Hidden</span>
-                  )}
-                  {p.is_trending && <span className="ml-2 text-orange">Trending</span>}
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <button
-                    onClick={() =>
-                      setEditing({
-                        id: p.id,
-                        title: p.title,
-                        slug: p.slug,
-                        description: p.description ?? "",
-                        price_naira: p.price_naira,
-                        category_id: p.category_id,
-                        image_urls: p.image_urls ?? [],
-                        is_trending: p.is_trending,
-                        is_active: p.is_active,
-                        stock: p.stock,
-                      })
-                    }
-                    className="rounded p-1 hover:bg-secondary"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => confirm(`Delete ${p.title}?`) && del.mutate(p.id)}
-                    className="rounded p-1 text-destructive hover:bg-secondary"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {(products ?? []).length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">
-                  No products yet. Create your first one.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-display text-xl font-bold">
-                {editing.id ? "Edit product" : "New product"}
-              </h3>
-              <button onClick={() => setEditing(null)}>
-                <X className="h-5 w-5" />
-              </button>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Revenue chart */}
+        <div className="rounded-xl border border-border bg-card p-4 lg:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Revenue · last 30 days
+              </div>
+              <div className="font-display text-2xl font-black text-neon">
+                {formatNaira(orders.revenue30d)}
+              </div>
             </div>
-            <div className="space-y-3">
-              <Input label="Title" value={editing.title} onChange={(v) => setEditing({ ...editing, title: v })} />
-              <Input
-                label="Slug (lowercase, hyphens)"
-                value={editing.slug}
-                onChange={(v) => setEditing({ ...editing, slug: v.toLowerCase().replace(/[^a-z0-9-]/g, "-") })}
-              />
-              <div>
-                <label className="text-xs font-semibold uppercase text-muted-foreground">
-                  Description
-                </label>
-                <textarea
-                  value={editing.description}
-                  onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                  rows={4}
-                  className="mt-1 w-full rounded-md border border-input bg-input px-3 py-2 text-sm"
-                />
+            <div className="text-right text-xs text-muted-foreground">
+              All-time
+              <div className="text-sm font-semibold text-foreground">
+                {formatNaira(orders.revenueAllTime)}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Price (₦)"
-                  type="number"
-                  value={String(editing.price_naira)}
-                  onChange={(v) => setEditing({ ...editing, price_naira: Number(v) || 0 })}
-                />
-                <Input
-                  label="Stock"
-                  type="number"
-                  value={String(editing.stock)}
-                  onChange={(v) => setEditing({ ...editing, stock: Number(v) || 0 })}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase text-muted-foreground">Category</label>
-                <select
-                  value={editing.category_id ?? ""}
-                  onChange={(e) => setEditing({ ...editing, category_id: e.target.value || null })}
-                  className="mt-1 w-full rounded-md border border-input bg-input px-3 py-2 text-sm"
-                >
-                  <option value="">— none —</option>
-                  {categories?.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={editing.is_trending}
-                    onChange={(e) => setEditing({ ...editing, is_trending: e.target.checked })}
-                  />
-                  Trending
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={editing.is_active}
-                    onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
-                  />
-                  Active
-                </label>
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase text-muted-foreground">Images</label>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  {editing.image_urls.map((path, i) => (
-                    <div key={i} className="relative h-16 w-16 overflow-hidden rounded border border-border">
-                      <ImageThumb path={path} />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditing({
-                            ...editing,
-                            image_urls: editing.image_urls.filter((_, idx) => idx !== i),
-                          })
-                        }
-                        className="absolute right-0 top-0 bg-destructive/80 p-0.5"
-                      >
-                        <X className="h-3 w-3 text-white" />
-                      </button>
-                    </div>
-                  ))}
-                  <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded border border-dashed border-border hover:border-neon">
-                    {uploading ? (
-                      <span className="text-xs">…</span>
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleUpload(e.target.files)}
-                    />
-                  </label>
-                </div>
-              </div>
-              <button
-                disabled={save.isPending}
-                onClick={() => save.mutate(editing)}
-                className="mt-2 w-full rounded-md bg-neon px-4 py-3 font-bold text-neon-foreground disabled:opacity-50"
-              >
-                {save.isPending ? "Saving…" : "Save product"}
-              </button>
-              {save.error && (
-                <div className="text-sm text-destructive">{(save.error as Error).message}</div>
-              )}
             </div>
           </div>
+          <div className="flex h-32 items-end gap-1">
+            {buckets.map((v, i) => (
+              <div
+                key={i}
+                className="flex-1 rounded-t bg-neon/70 transition-all hover:bg-neon"
+                style={{ height: `${(v / max) * 100}%`, minHeight: v > 0 ? "4px" : "2px" }}
+                title={formatNaira(v)}
+              />
+            ))}
+          </div>
         </div>
-      )}
+
+        {/* Low stock */}
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-orange" />
+            <h3 className="font-display text-sm font-bold uppercase tracking-wide">Low stock</h3>
+          </div>
+          {products.lowStock.length === 0 ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              All stock levels healthy.
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {products.lowStock.map((p: any) => (
+                <li key={p.id} className="flex items-center justify-between text-sm">
+                  <span className="truncate">{p.title}</span>
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs font-bold ${
+                      p.stock === 0
+                        ? "bg-destructive/20 text-destructive"
+                        : "bg-orange/20 text-orange"
+                    }`}
+                  >
+                    {p.stock} left
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link
+            to="/admin/products"
+            className="mt-3 flex items-center justify-end gap-1 text-xs font-semibold text-neon"
+          >
+            Manage products <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Recent orders */}
+      <div className="rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border p-4">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-neon" />
+            <h3 className="font-display text-sm font-bold uppercase tracking-wide">
+              Recent orders
+            </h3>
+          </div>
+          <Link
+            to="/admin/orders"
+            className="flex items-center gap-1 text-xs font-semibold text-neon"
+          >
+            View all <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-surface text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left">Product</th>
+                <th className="px-3 py-2 text-left">Sender</th>
+                <th className="px-3 py-2 text-left">Amount</th>
+                <th className="px-3 py-2 text-left">Status</th>
+                <th className="px-3 py-2 text-left">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.recent.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-10 text-center text-muted-foreground">
+                    No orders yet.
+                  </td>
+                </tr>
+              )}
+              {orders.recent.map((o: any) => (
+                <tr key={o.id} className="border-t border-border">
+                  <td className="px-3 py-2 font-semibold">{o.products?.title ?? "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{o.sender_name ?? "—"}</td>
+                  <td className="px-3 py-2">{formatNaira(o.base_amount)}</td>
+                  <td className="px-3 py-2">
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-bold ${
+                        o.status === "paid"
+                          ? "bg-neon/20 text-neon"
+                          : o.status === "pending"
+                            ? "bg-orange/20 text-orange"
+                            : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {o.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {new Date(o.created_at).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
 
-function Input({
+function StatCard({
   label,
   value,
-  onChange,
-  type = "text",
+  icon: Icon,
+  tone,
+  to,
 }: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
-  type?: string;
+  icon: any;
+  tone: "neon" | "orange" | "default";
+  to?: string;
 }) {
-  return (
-    <div>
-      <label className="text-xs font-semibold uppercase text-muted-foreground">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-md border border-input bg-input px-3 py-2 text-sm"
-      />
+  const toneCls =
+    tone === "neon" ? "text-neon" : tone === "orange" ? "text-orange" : "text-foreground";
+  const inner = (
+    <div className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-neon/50">
+      <div className="flex items-center justify-between">
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
+        <Icon className={`h-4 w-4 ${toneCls}`} />
+      </div>
+      <div className={`mt-2 font-display text-2xl font-black ${toneCls}`}>{value}</div>
     </div>
   );
+  return to ? <Link to={to}>{inner}</Link> : inner;
 }
-
-function ImageThumb({ path }: { path: string }) {
-  const [url, setUrl] = useState<string>("");
-  useEffect(() => {
-    if (!path) return;
-    if (path.startsWith("http")) {
-      setUrl(path);
-      return;
-    }
-    supabase.storage
-      .from("product-images")
-      .createSignedUrl(path, 3600)
-      .then(({ data }) => data?.signedUrl && setUrl(data.signedUrl));
-  }, [path]);
-  return url ? <img src={url} alt="" className="h-full w-full object-cover" /> : null;
-}
-
