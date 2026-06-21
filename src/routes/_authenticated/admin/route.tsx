@@ -25,12 +25,12 @@ function AdminLayout() {
       </div>
     );
 
-  const tabs = [
+  const tabs: { to: string; label: string; icon: typeof Package; exact?: boolean }[] = [
     { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
     { to: "/admin/products", label: "Products", icon: Package },
     { to: "/admin/orders", label: "Orders", icon: Receipt },
     { to: "/admin/settings", label: "Settings", icon: Cog },
-  ] as const;
+  ];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
