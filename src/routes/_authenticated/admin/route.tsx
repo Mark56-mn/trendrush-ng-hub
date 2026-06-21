@@ -26,7 +26,8 @@ function AdminLayout() {
     );
 
   const tabs = [
-    { to: "/admin", label: "Products", icon: Package },
+    { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    { to: "/admin/products", label: "Products", icon: Package },
     { to: "/admin/orders", label: "Orders", icon: Receipt },
     { to: "/admin/settings", label: "Settings", icon: Cog },
   ] as const;
@@ -38,10 +39,9 @@ function AdminLayout() {
       </div>
       <nav className="mb-6 flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1">
         {tabs.map((t) => {
-          const active =
-            t.to === "/admin"
-              ? pathname === "/admin" || pathname === "/admin/"
-              : pathname.startsWith(t.to);
+          const active = t.exact
+            ? pathname === "/admin" || pathname === "/admin/"
+            : pathname.startsWith(t.to);
           const Icon = t.icon;
           return (
             <Link
