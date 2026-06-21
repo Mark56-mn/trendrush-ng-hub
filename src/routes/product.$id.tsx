@@ -85,7 +85,7 @@ function ProductPage() {
   }
 
   const waLink = (() => {
-    const base = settings?.whatsapp_link || "https://wa.me/2348000000000";
+    const base = settings?.whatsapp_link || "https://wa.link/4scn2n";
     try {
       const u = new URL(base);
       u.searchParams.set(

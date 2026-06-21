@@ -22,6 +22,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as ApiPublicMoniepointWebhookRouteImport } from './routes/api/public/moniepoint-webhook'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin/products'
+import { Route as AuthenticatedAdminProductContainerRouteImport } from './routes/_authenticated/admin/product-container'
 import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenticated/admin/orders'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -91,6 +92,12 @@ const AuthenticatedAdminProductsRoute =
     path: '/products',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminProductContainerRoute =
+  AuthenticatedAdminProductContainerRouteImport.update({
+    id: '/product-container',
+    path: '/product-container',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminOrdersRoute =
   AuthenticatedAdminOrdersRouteImport.update({
     id: '/orders',
@@ -109,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/product/$id': typeof ProductIdRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
+  '/admin/product-container': typeof AuthenticatedAdminProductContainerRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -123,6 +131,7 @@ export interface FileRoutesByTo {
   '/product/$id': typeof ProductIdRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
+  '/admin/product-container': typeof AuthenticatedAdminProductContainerRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -140,6 +149,7 @@ export interface FileRoutesById {
   '/product/$id': typeof ProductIdRoute
   '/_authenticated/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
+  '/_authenticated/admin/product-container': typeof AuthenticatedAdminProductContainerRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/product/$id'
     | '/admin/orders'
     | '/admin/products'
+    | '/admin/product-container'
     | '/admin/settings'
     | '/api/public/moniepoint-webhook'
     | '/admin/'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/product/$id'
     | '/admin/orders'
     | '/admin/products'
+    | '/admin/product-container'
     | '/admin/settings'
     | '/api/public/moniepoint-webhook'
     | '/admin'
@@ -187,6 +199,7 @@ export interface FileRouteTypes {
     | '/product/$id'
     | '/_authenticated/admin/orders'
     | '/_authenticated/admin/products'
+    | '/_authenticated/admin/product-container'
     | '/_authenticated/admin/settings'
     | '/api/public/moniepoint-webhook'
     | '/_authenticated/admin/'
@@ -296,6 +309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminProductsRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/product-container': {
+      id: '/_authenticated/admin/product-container'
+      path: '/product-container'
+      fullPath: '/admin/product-container'
+      preLoaderRoute: typeof AuthenticatedAdminProductContainerRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/orders': {
       id: '/_authenticated/admin/orders'
       path: '/orders'
@@ -309,6 +329,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminOrdersRoute: typeof AuthenticatedAdminOrdersRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
+  AuthenticatedAdminProductContainerRoute: typeof AuthenticatedAdminProductContainerRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
@@ -317,6 +338,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
   {
     AuthenticatedAdminOrdersRoute: AuthenticatedAdminOrdersRoute,
     AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
+    AuthenticatedAdminProductContainerRoute: AuthenticatedAdminProductContainerRoute,
     AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   }

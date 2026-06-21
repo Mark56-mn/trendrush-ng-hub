@@ -24,6 +24,10 @@ type Editing = {
   is_trending: boolean;
   is_active: boolean;
   stock: number;
+  source_url?: string | null;
+  product_cost_naira?: number | null;
+  shipping_cost_naira?: number | null;
+  import_notes?: string | null;
 };
 
 const empty: Editing = {
@@ -36,6 +40,10 @@ const empty: Editing = {
   is_trending: false,
   is_active: true,
   stock: 0,
+  source_url: null,
+  product_cost_naira: null,
+  shipping_cost_naira: null,
+  import_notes: null,
 };
 
 function AdminProducts() {
@@ -102,8 +110,8 @@ function AdminProducts() {
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="min-w-[760px] w-full text-sm">
           <thead className="bg-surface text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-3 py-2 text-left">Product</th>
@@ -155,6 +163,10 @@ function AdminProducts() {
                         is_trending: p.is_trending,
                         is_active: p.is_active,
                         stock: p.stock,
+                        source_url: p.source_url ?? null,
+                        product_cost_naira: p.product_cost_naira ?? null,
+                        shipping_cost_naira: p.shipping_cost_naira ?? null,
+                        import_notes: p.import_notes ?? null,
                       })
                     }
                     className="rounded p-1 hover:bg-secondary"
@@ -210,7 +222,7 @@ function AdminProducts() {
                   className="mt-1 w-full rounded-md border border-input bg-input px-3 py-2 text-sm"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <Input
                   label="Price (₦)"
                   type="number"
@@ -222,6 +234,35 @@ function AdminProducts() {
                   type="number"
                   value={String(editing.stock)}
                   onChange={(v) => setEditing({ ...editing, stock: Number(v) || 0 })}
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Supplier cost (₦)"
+                  type="number"
+                  value={String(editing.product_cost_naira ?? "")}
+                  onChange={(v) => setEditing({ ...editing, product_cost_naira: v ? Number(v) || 0 : null })}
+                />
+                <Input
+                  label="Other/import cost (₦)"
+                  type="number"
+                  value={String(editing.shipping_cost_naira ?? "")}
+                  onChange={(v) => setEditing({ ...editing, shipping_cost_naira: v ? Number(v) || 0 : null })}
+                />
+              </div>
+              <Input
+                label="Supplier link"
+                value={editing.source_url ?? ""}
+                onChange={(v) => setEditing({ ...editing, source_url: v || null })}
+              />
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground">Import notes / costs</label>
+                <textarea
+                  value={editing.import_notes ?? ""}
+                  onChange={(e) => setEditing({ ...editing, import_notes: e.target.value || null })}
+                  rows={2}
+                  className="mt-1 w-full rounded-md border border-input bg-input px-3 py-2 text-sm"
+                  placeholder="Supplier price, delivery fees, profit margin notes..."
                 />
               </div>
               <div>
@@ -364,6 +405,15 @@ function AdminProducts() {
                   </label>
                 </div>
               </div>
+              {(editing.product_cost_naira || editing.shipping_cost_naira) && (
+                <div className="rounded-md border border-border bg-surface p-3 text-sm">
+                  <div className="font-semibold">Cost summary</div>
+                  <div className="mt-1 text-muted-foreground">
+                    Total supplier/import cost:{" "}
+                    {formatNaira((editing.product_cost_naira ?? 0) + (editing.shipping_cost_naira ?? 0))}
+                  </div>
+                </div>
+              )}
               <button
                 disabled={save.isPending}
                 onClick={() => save.mutate(editing)}

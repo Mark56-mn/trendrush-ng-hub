@@ -132,6 +132,96 @@ export type Database = {
           },
         ]
       }
+      product_imports: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          description: string | null
+          detected_currency: string | null
+          detected_price: number | null
+          exchange_rate_naira: number | null
+          id: string
+          image_urls: string[]
+          import_notes: string | null
+          is_trending: boolean
+          product_cost_naira: number | null
+          product_id: string | null
+          selling_price_naira: number
+          shipping_fee_naira: number
+          slug: string
+          source_url: string
+          status: string
+          stock: number
+          tax_percentage: number
+          title: string
+          updated_at: string
+          video_urls: string[]
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          detected_currency?: string | null
+          detected_price?: number | null
+          exchange_rate_naira?: number | null
+          id?: string
+          image_urls?: string[]
+          import_notes?: string | null
+          is_trending?: boolean
+          product_cost_naira?: number | null
+          product_id?: string | null
+          selling_price_naira?: number
+          shipping_fee_naira?: number
+          slug: string
+          source_url: string
+          status?: string
+          stock?: number
+          tax_percentage?: number
+          title: string
+          updated_at?: string
+          video_urls?: string[]
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          detected_currency?: string | null
+          detected_price?: number | null
+          exchange_rate_naira?: number | null
+          id?: string
+          image_urls?: string[]
+          import_notes?: string | null
+          is_trending?: boolean
+          product_cost_naira?: number | null
+          product_id?: string | null
+          selling_price_naira?: number
+          shipping_fee_naira?: number
+          slug?: string
+          source_url?: string
+          status?: string
+          stock?: number
+          tax_percentage?: number
+          title?: string
+          updated_at?: string
+          video_urls?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_imports_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_imports_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category_id: string | null
@@ -142,6 +232,10 @@ export type Database = {
           is_active: boolean
           is_trending: boolean
           price_naira: number
+          product_cost_naira: number | null
+          shipping_cost_naira: number | null
+          source_url: string | null
+          import_notes: string | null
           slug: string
           stock: number
           title: string
@@ -156,6 +250,10 @@ export type Database = {
           is_active?: boolean
           is_trending?: boolean
           price_naira: number
+          product_cost_naira?: number | null
+          shipping_cost_naira?: number | null
+          source_url?: string | null
+          import_notes?: string | null
           slug: string
           stock?: number
           title: string
@@ -170,6 +268,10 @@ export type Database = {
           is_active?: boolean
           is_trending?: boolean
           price_naira?: number
+          product_cost_naira?: number | null
+          shipping_cost_naira?: number | null
+          source_url?: string | null
+          import_notes?: string | null
           slug?: string
           stock?: number
           title?: string
