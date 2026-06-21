@@ -94,7 +94,10 @@ function AdminProducts() {
       setEditing({
         ...empty,
         title,
-        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "imported-product",
+        slug:
+          draft.slug ||
+          title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) ||
+          "imported-product",
         description: draft.description || "",
         image_urls: draft.image_urls ?? [],
         source_url: draft.source_url,
@@ -462,6 +465,15 @@ function AdminProducts() {
                   </label>
                 </div>
               </div>
+              {(editing.product_cost_naira || editing.shipping_cost_naira) && (
+                <div className="rounded-md border border-border bg-surface p-3 text-sm">
+                  <div className="font-semibold">Cost summary</div>
+                  <div className="mt-1 text-muted-foreground">
+                    Total supplier/import cost:{" "}
+                    {formatNaira((editing.product_cost_naira ?? 0) + (editing.shipping_cost_naira ?? 0))}
+                  </div>
+                </div>
+              )}
               <button
                 disabled={save.isPending}
                 onClick={() => save.mutate(editing)}

@@ -79,32 +79,64 @@ function decodeHtml(value: string) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ");
 }
 
-function firstMeta(html: string, names: string[]) {
+function cleanText(value: unknown) {
+  return decodeHtml(String(value ?? ""))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractMeta(html: string, names: string[]) {
   for (const name of names) {
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const patterns = [
-      new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`, "i"),
-      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, "i"),
+      new RegExp(
+        `<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`,
+        "i",
+      ),
+      new RegExp(
+        `<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`,
+        "i",
+      ),
     ];
     for (const pattern of patterns) {
       const match = html.match(pattern);
-      if (match?.[1]) return decodeHtml(match[1].trim());
+      if (match?.[1]) return cleanText(match[1]);
     }
   }
   return "";
 }
 
-function firstJsonLd(html: string) {
-  const blocks = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+function extractPageTitle(html: string) {
+  const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return match?.[1] ? cleanText(match[1]) : "";
+}
+
+function flattenJsonLd(value: unknown): any[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.flatMap((item) => flattenJsonLd(item));
+  if (typeof value !== "object") return [];
+  const item = value as any;
+  return [
+    item,
+    ...flattenJsonLd(item["@graph"]),
+    ...flattenJsonLd(item.mainEntity),
+    ...flattenJsonLd(item.itemListElement),
+  ];
+}
+
+function extractJsonLdProduct(html: string) {
+  const blocks = [
+    ...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi),
+  ];
   for (const block of blocks) {
     try {
       const parsed = JSON.parse(block[1].trim());
-      const items = Array.isArray(parsed) ? parsed : [parsed, ...(parsed?.['@graph'] ?? [])];
-      const product = items.find((item) => {
-        const type = item?.['@type'];
+      const product = flattenJsonLd(parsed).find((item) => {
+        const type = item?.["@type"];
         return type === "Product" || (Array.isArray(type) && type.includes("Product"));
       });
       if (product) return product;
@@ -123,6 +155,56 @@ function absoluteUrl(url: string, base: string) {
   }
 }
 
+function getImageUrl(image: unknown): string {
+  if (typeof image === "string") return image;
+  if (image && typeof image === "object" && "url" in image) {
+    return String((image as { url?: unknown }).url ?? "");
+  }
+  return "";
+}
+
+function normalizeImages(images: unknown[], baseUrl: string) {
+  return [...new Set(images.map(getImageUrl).map(cleanText).filter(Boolean))]
+    .slice(0, 8)
+    .map((image) => absoluteUrl(image, baseUrl));
+}
+
+function parsePrice(value: unknown) {
+  const normalized = String(value ?? "").replace(/,/g, "").match(/\d+(?:\.\d+)?/);
+  if (!normalized) return null;
+  const price = Number.parseFloat(normalized[0]);
+  return Number.isFinite(price) ? price : null;
+}
+
+function extractOffer(product: any) {
+  const offer = Array.isArray(product?.offers) ? product.offers[0] : product?.offers;
+  if (offer?.priceSpecification) {
+    return Array.isArray(offer.priceSpecification) ? offer.priceSpecification[0] : offer.priceSpecification;
+  }
+  return offer;
+}
+
+function slugify(value: string) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+async function makeUniqueSlug(supabase: any, slug: string, ignoreId?: string) {
+  const base = slugify(slug) || `product-${Date.now()}`;
+  for (let index = 0; index < 50; index += 1) {
+    const candidate = index === 0 ? base : `${base}-${index + 1}`;
+    let query = supabase.from("products").select("id").eq("slug", candidate);
+    if (ignoreId) query = query.neq("id", ignoreId);
+    const { data, error } = await query.maybeSingle();
+    if (error) throw error;
+    if (!data) return candidate;
+  }
+  return `${base}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
 export const importProductFromUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ url: z.string().trim().url().max(2000) }).parse(input))
@@ -136,25 +218,27 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     });
     if (!response.ok) throw new Error(`Could not read product page (${response.status})`);
     const html = await response.text();
-    const jsonLd = firstJsonLd(html);
-    const title = String(jsonLd?.name ?? firstMeta(html, ["og:title", "twitter:title"]) ?? "").trim();
-    const description = String(jsonLd?.description ?? firstMeta(html, ["og:description", "twitter:description", "description"]) ?? "").trim();
-    const imageValue = jsonLd?.image;
-    const rawImages = Array.isArray(imageValue) ? imageValue : imageValue ? [imageValue] : [firstMeta(html, ["og:image", "twitter:image"])];
-    const image_urls = rawImages
-      .map((image) => (typeof image === "string" ? image : image?.url))
-      .filter(Boolean)
-      .slice(0, 8)
-      .map((image: string) => absoluteUrl(image, data.url));
-    const offer = Array.isArray(jsonLd?.offers) ? jsonLd.offers[0] : jsonLd?.offers;
-    const detectedPrice = Number.parseFloat(String(offer?.price ?? firstMeta(html, ["product:price:amount", "og:price:amount"]) ?? ""));
-    const detectedCurrency = String(offer?.priceCurrency ?? firstMeta(html, ["product:price:currency", "og:price:currency"]) ?? "").toUpperCase();
+    const jsonLd = extractJsonLdProduct(html);
+    const title = cleanText(jsonLd?.name) || extractMeta(html, ["og:title", "twitter:title"]) || extractPageTitle(html);
+    if (!title) throw new Error("No product title was found on that page. Please add the product manually.");
+    const description =
+      cleanText(jsonLd?.description) || extractMeta(html, ["og:description", "twitter:description", "description"]);
+    const rawImages = Array.isArray(jsonLd?.image) ? jsonLd.image : jsonLd?.image ? [jsonLd.image] : [];
+    const image_urls = normalizeImages([...rawImages, extractMeta(html, ["og:image", "twitter:image"])], data.url);
+    const offer = extractOffer(jsonLd);
+    const detectedPrice =
+      parsePrice(offer?.price ?? offer?.lowPrice ?? offer?.highPrice) ??
+      parsePrice(extractMeta(html, ["product:price:amount", "og:price:amount"]));
+    const detectedCurrency = cleanText(
+      offer?.priceCurrency ?? extractMeta(html, ["product:price:currency", "og:price:currency"]),
+    ).toUpperCase();
     return {
       title,
+      slug: await makeUniqueSlug(context.supabase, title),
       description,
       image_urls,
       source_url: data.url,
-      detected_price: Number.isFinite(detectedPrice) ? detectedPrice : null,
+      detected_price: detectedPrice,
       detected_currency: detectedCurrency || null,
     };
   });
@@ -179,7 +263,13 @@ export const adminListProducts = createServerFn({ method: "GET" })
 const productInput = z.object({
   id: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(200),
-  slug: z.string().trim().min(1).max(200).regex(/^[a-z0-9-]+$/, "lowercase, digits, hyphens only"),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .transform(slugify)
+    .pipe(z.string().min(1).regex(/^[a-z0-9-]+$/, "lowercase, digits, hyphens only")),
   description: z.string().trim().max(5000).optional().nullable(),
   price_naira: z.number().int().min(0).max(100_000_000),
   category_id: z.string().uuid().nullable().optional(),
@@ -187,7 +277,10 @@ const productInput = z.object({
   is_trending: z.boolean().default(false),
   is_active: z.boolean().default(true),
   stock: z.number().int().min(0).default(0),
-  source_url: z.string().trim().url().max(2000).optional().nullable(),
+  source_url: z.preprocess(
+    (value) => (value === "" ? null : value),
+    z.string().trim().url().max(2000).optional().nullable(),
+  ),
   product_cost_naira: z.number().int().min(0).max(100_000_000).optional().nullable(),
   shipping_cost_naira: z.number().int().min(0).max(100_000_000).optional().nullable(),
   import_notes: z.string().trim().max(2000).optional().nullable(),
@@ -198,14 +291,15 @@ export const upsertProduct = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => productInput.parse(input))
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
+    const payload = { ...data, slug: await makeUniqueSlug(context.supabase, data.slug, data.id) };
     if (data.id) {
-      const { error } = await context.supabase.from("products").update(data).eq("id", data.id);
+      const { error } = await context.supabase.from("products").update(payload).eq("id", data.id);
       if (error) throw error;
       return { id: data.id };
     }
     const { data: row, error } = await context.supabase
       .from("products")
-      .insert(data)
+      .insert(payload)
       .select("id")
       .single();
     if (error) throw error;
