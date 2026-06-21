@@ -7,7 +7,7 @@ import { adminListProducts, upsertProduct, deleteProduct } from "@/lib/admin.fun
 import { listCategories } from "@/lib/shop.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/format";
-import { Pencil, Trash2, Plus, X, Upload } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Upload, GripVertical, Star } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/products")({
   component: AdminProducts,
@@ -49,6 +49,16 @@ function AdminProducts() {
 
   const [editing, setEditing] = useState<Editing | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+
+  function reorderImages(from: number, to: number) {
+    if (!editing || from === to) return;
+    const next = [...editing.image_urls];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setEditing({ ...editing, image_urls: next });
+  }
 
   const save = useMutation({
     mutationFn: (data: Editing) => upsertFn({ data }),
@@ -248,11 +258,74 @@ function AdminProducts() {
                 </label>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase text-muted-foreground">Images</label>
-                <div className="mt-1 flex flex-wrap gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold uppercase text-muted-foreground">
+                    Gallery ({editing.image_urls.length})
+                  </label>
+                  <span className="text-[10px] text-muted-foreground">
+                    Drag to reorder · first image is the cover
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-5">
                   {editing.image_urls.map((path, i) => (
-                    <div key={i} className="relative h-16 w-16 overflow-hidden rounded border border-border">
+                    <div
+                      key={`${path}-${i}`}
+                      draggable
+                      onDragStart={(e) => {
+                        setDragIdx(i);
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        if (overIdx !== i) setOverIdx(i);
+                      }}
+                      onDragLeave={() => setOverIdx((o) => (o === i ? null : o))}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (dragIdx !== null) reorderImages(dragIdx, i);
+                        setDragIdx(null);
+                        setOverIdx(null);
+                      }}
+                      onDragEnd={() => {
+                        setDragIdx(null);
+                        setOverIdx(null);
+                      }}
+                      className={`group relative aspect-square cursor-move overflow-hidden rounded-md border bg-surface transition ${
+                        overIdx === i ? "border-neon ring-2 ring-neon" : "border-border"
+                      } ${dragIdx === i ? "opacity-40" : ""}`}
+                    >
                       <ImageThumb path={path} />
+                      {i === 0 && (
+                        <span className="absolute left-1 top-1 flex items-center gap-0.5 rounded bg-neon/90 px-1 py-0.5 text-[9px] font-bold text-neon-foreground">
+                          <Star className="h-2.5 w-2.5" /> COVER
+                        </span>
+                      )}
+                      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/60 px-1 py-0.5 opacity-0 transition group-hover:opacity-100">
+                        <GripVertical className="h-3 w-3 text-white/80" />
+                        <div className="flex gap-0.5">
+                          {i > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => reorderImages(i, i - 1)}
+                              className="rounded bg-white/20 px-1 text-[10px] text-white hover:bg-white/40"
+                              aria-label="Move left"
+                            >
+                              ◀
+                            </button>
+                          )}
+                          {i < editing.image_urls.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={() => reorderImages(i, i + 1)}
+                              className="rounded bg-white/20 px-1 text-[10px] text-white hover:bg-white/40"
+                              aria-label="Move right"
+                            >
+                              ▶
+                            </button>
+                          )}
+                        </div>
+                      </div>
                       <button
                         type="button"
                         onClick={() =>
@@ -261,24 +334,32 @@ function AdminProducts() {
                             image_urls: editing.image_urls.filter((_, idx) => idx !== i),
                           })
                         }
-                        className="absolute right-0 top-0 bg-destructive/80 p-0.5"
+                        className="absolute right-0.5 top-0.5 rounded bg-destructive/90 p-0.5 hover:bg-destructive"
+                        aria-label="Remove image"
                       >
                         <X className="h-3 w-3 text-white" />
                       </button>
                     </div>
                   ))}
-                  <label className="flex h-16 w-16 cursor-pointer items-center justify-center rounded border border-dashed border-border hover:border-neon">
+                  <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-border text-muted-foreground hover:border-neon hover:text-neon">
                     {uploading ? (
-                      <span className="text-xs">…</span>
+                      <span className="text-xs">Uploading…</span>
                     ) : (
-                      <Upload className="h-4 w-4" />
+                      <>
+                        <Upload className="h-5 w-5" />
+                        <span className="text-[10px]">Add</span>
+                      </>
                     )}
                     <input
                       type="file"
                       multiple
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => handleUpload(e.target.files)}
+                      disabled={uploading}
+                      onChange={(e) => {
+                        handleUpload(e.target.files);
+                        e.target.value = "";
+                      }}
                     />
                   </label>
                 </div>
