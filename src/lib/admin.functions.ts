@@ -21,6 +21,58 @@ export const isAdmin = createServerFn({ method: "GET" })
     return Boolean(data);
   });
 
+export const adminDashboardStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const sb = context.supabase;
+    const startToday = new Date();
+    startToday.setHours(0, 0, 0, 0);
+    const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [
+      productsTotal,
+      productsActive,
+      productsLowStock,
+      ordersPending,
+      ordersPaidAll,
+      ordersPaidToday,
+      ordersPaid30d,
+      recentOrders,
+    ] = await Promise.all([
+      sb.from("products").select("id", { count: "exact", head: true }),
+      sb.from("products").select("id", { count: "exact", head: true }).eq("is_active", true),
+      sb.from("products").select("id, title, stock").lte("stock", 3).order("stock", { ascending: true }).limit(5),
+      sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      sb.from("orders").select("base_amount").eq("status", "paid"),
+      sb.from("orders").select("base_amount").eq("status", "paid").gte("paid_at", startToday.toISOString()),
+      sb.from("orders").select("base_amount, paid_at").eq("status", "paid").gte("paid_at", since30),
+      sb.from("orders")
+        .select("id, status, base_amount, sender_name, created_at, products(title)")
+        .order("created_at", { ascending: false })
+        .limit(8),
+    ]);
+
+    const sum = (rows: any[] | null) => (rows ?? []).reduce((a, r) => a + (r.base_amount ?? 0), 0);
+
+    return {
+      products: {
+        total: productsTotal.count ?? 0,
+        active: productsActive.count ?? 0,
+        lowStock: productsLowStock.data ?? [],
+      },
+      orders: {
+        pending: ordersPending.count ?? 0,
+        paidTotal: (ordersPaidAll.data ?? []).length,
+        revenueAllTime: sum(ordersPaidAll.data),
+        revenueToday: sum(ordersPaidToday.data),
+        revenue30d: sum(ordersPaid30d.data),
+        paid30dSeries: (ordersPaid30d.data ?? []) as { base_amount: number; paid_at: string }[],
+        recent: recentOrders.data ?? [],
+      },
+    };
+  });
+
 export const adminListProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
