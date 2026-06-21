@@ -169,6 +169,19 @@ function normalizeImages(images: unknown[], baseUrl: string) {
     .map((image) => absoluteUrl(image, baseUrl));
 }
 
+function getVideoUrl(video: unknown): string {
+  if (typeof video === "string") return video;
+  if (!video || typeof video !== "object") return "";
+  const value = video as { contentUrl?: unknown; embedUrl?: unknown; url?: unknown };
+  return String(value.contentUrl ?? value.embedUrl ?? value.url ?? "");
+}
+
+function normalizeVideos(videos: unknown[], baseUrl: string) {
+  return [...new Set(videos.map(getVideoUrl).map(cleanText).filter(Boolean))]
+    .slice(0, 6)
+    .map((video) => absoluteUrl(video, baseUrl));
+}
+
 function parsePrice(value: unknown) {
   const normalized = String(value ?? "").replace(/,/g, "").match(/\d+(?:\.\d+)?/);
   if (!normalized) return null;
@@ -205,42 +218,193 @@ async function makeUniqueSlug(supabase: any, slug: string, ignoreId?: string) {
   return `${base}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
+async function importProductDraft(supabase: any, url: string) {
+  const response = await fetch(url, {
+    headers: {
+      "user-agent": "Mozilla/5.0 (compatible; TrendRushNGImporter/1.0)",
+      accept: "text/html,application/xhtml+xml",
+    },
+  });
+  if (!response.ok) throw new Error(`Could not read product page (${response.status})`);
+  const html = await response.text();
+  const jsonLd = extractJsonLdProduct(html);
+  const title = cleanText(jsonLd?.name) || extractMeta(html, ["og:title", "twitter:title"]) || extractPageTitle(html);
+  if (!title) throw new Error("No product title was found on that page. Please add the product manually.");
+  const description =
+    cleanText(jsonLd?.description) || extractMeta(html, ["og:description", "twitter:description", "description"]);
+  const rawImages = Array.isArray(jsonLd?.image) ? jsonLd.image : jsonLd?.image ? [jsonLd.image] : [];
+  const rawVideos = Array.isArray(jsonLd?.video) ? jsonLd.video : jsonLd?.video ? [jsonLd.video] : [];
+  const image_urls = normalizeImages([...rawImages, extractMeta(html, ["og:image", "twitter:image"])], url);
+  const video_urls = normalizeVideos(
+    [...rawVideos, extractMeta(html, ["og:video", "og:video:url", "twitter:player"])],
+    url,
+  );
+  const offer = extractOffer(jsonLd);
+  const detectedPrice =
+    parsePrice(offer?.price ?? offer?.lowPrice ?? offer?.highPrice) ??
+    parsePrice(extractMeta(html, ["product:price:amount", "og:price:amount"]));
+  const detectedCurrency = cleanText(
+    offer?.priceCurrency ?? extractMeta(html, ["product:price:currency", "og:price:currency"]),
+  ).toUpperCase();
+  return {
+    title,
+    slug: await makeUniqueSlug(supabase, title),
+    description,
+    image_urls,
+    video_urls,
+    source_url: url,
+    detected_price: detectedPrice,
+    detected_currency: detectedCurrency || null,
+  };
+}
+
 export const importProductFromUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ url: z.string().trim().url().max(2000) }).parse(input))
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
-    const response = await fetch(data.url, {
-      headers: {
-        "user-agent": "Mozilla/5.0 (compatible; TrendRushNGImporter/1.0)",
-        accept: "text/html,application/xhtml+xml",
-      },
-    });
-    if (!response.ok) throw new Error(`Could not read product page (${response.status})`);
-    const html = await response.text();
-    const jsonLd = extractJsonLdProduct(html);
-    const title = cleanText(jsonLd?.name) || extractMeta(html, ["og:title", "twitter:title"]) || extractPageTitle(html);
-    if (!title) throw new Error("No product title was found on that page. Please add the product manually.");
-    const description =
-      cleanText(jsonLd?.description) || extractMeta(html, ["og:description", "twitter:description", "description"]);
-    const rawImages = Array.isArray(jsonLd?.image) ? jsonLd.image : jsonLd?.image ? [jsonLd.image] : [];
-    const image_urls = normalizeImages([...rawImages, extractMeta(html, ["og:image", "twitter:image"])], data.url);
-    const offer = extractOffer(jsonLd);
-    const detectedPrice =
-      parsePrice(offer?.price ?? offer?.lowPrice ?? offer?.highPrice) ??
-      parsePrice(extractMeta(html, ["product:price:amount", "og:price:amount"]));
-    const detectedCurrency = cleanText(
-      offer?.priceCurrency ?? extractMeta(html, ["product:price:currency", "og:price:currency"]),
-    ).toUpperCase();
-    return {
-      title,
-      slug: await makeUniqueSlug(context.supabase, title),
-      description,
-      image_urls,
-      source_url: data.url,
-      detected_price: detectedPrice,
-      detected_currency: detectedCurrency || null,
-    };
+    return importProductDraft(context.supabase, data.url);
+  });
+
+
+const productImportInput = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1).max(200),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .transform(slugify)
+    .pipe(z.string().min(1).regex(/^[a-z0-9-]+$/, "lowercase, digits, hyphens only")),
+  description: z.string().trim().max(5000).optional().nullable(),
+  image_urls: z.array(z.string()).default([]),
+  video_urls: z.array(z.string()).default([]),
+  selling_price_naira: z.number().int().min(0).max(100_000_000),
+  shipping_fee_naira: z.number().int().min(0).max(100_000_000).default(0),
+  tax_percentage: z.number().min(0).max(100).default(0),
+  product_cost_naira: z.number().int().min(0).max(100_000_000).optional().nullable(),
+  category_id: z.string().uuid().nullable().optional(),
+  stock: z.number().int().min(0).default(0),
+  is_trending: z.boolean().default(false),
+  import_notes: z.string().trim().max(2000).optional().nullable(),
+});
+
+export const adminListProductImports = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data, error } = await context.supabase
+      .from("product_imports")
+      .select("*, categories(slug, name), products(id, title)")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  });
+
+export const importProductToContainer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        url: z.string().trim().url().max(2000),
+        exchange_rate_naira: z.number().min(0).max(10_000_000).default(1600),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const draft = await importProductDraft(context.supabase, data.url);
+    const convertedCost = draft.detected_price ? Math.round(draft.detected_price * data.exchange_rate_naira) : null;
+    const { data: row, error } = await context.supabase
+      .from("product_imports")
+      .insert({
+        source_url: draft.source_url,
+        title: draft.title,
+        slug: draft.slug,
+        description: draft.description,
+        image_urls: draft.image_urls,
+        video_urls: draft.video_urls,
+        detected_price: draft.detected_price,
+        detected_currency: draft.detected_currency,
+        exchange_rate_naira: data.exchange_rate_naira,
+        product_cost_naira: convertedCost,
+        selling_price_naira: convertedCost ?? 0,
+        import_notes: draft.detected_price
+          ? `Detected supplier price: ${draft.detected_currency ?? ""} ${draft.detected_price}`.trim()
+          : null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return row;
+  });
+
+export const updateProductImport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => productImportInput.parse(input))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const payload = { ...data, slug: slugify(data.slug) };
+    const { error } = await context.supabase.from("product_imports").update(payload).eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const deleteProductImport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { error } = await context.supabase.from("product_imports").delete().eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const addProductImportToStore = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { data: draft, error: draftError } = await context.supabase
+      .from("product_imports")
+      .select("*")
+      .eq("id", data.id)
+      .single();
+    if (draftError) throw draftError;
+    const slug = await makeUniqueSlug(context.supabase, draft.slug || draft.title);
+    const { data: product, error: productError } = await context.supabase
+      .from("products")
+      .insert({
+        title: draft.title,
+        slug,
+        description: draft.description,
+        price_naira: draft.selling_price_naira,
+        category_id: draft.category_id,
+        image_urls: draft.image_urls,
+        is_trending: draft.is_trending,
+        is_active: true,
+        stock: draft.stock,
+        source_url: draft.source_url,
+        product_cost_naira: draft.product_cost_naira,
+        shipping_cost_naira: draft.shipping_fee_naira,
+        import_notes: [
+          draft.import_notes,
+          `Tax: ${draft.tax_percentage ?? 0}%`,
+          draft.video_urls?.length ? `Imported videos: ${draft.video_urls.join(", ")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      })
+      .select("id")
+      .single();
+    if (productError) throw productError;
+    const { error: updateError } = await context.supabase
+      .from("product_imports")
+      .update({ status: "published", product_id: product.id })
+      .eq("id", data.id);
+    if (updateError) throw updateError;
+    return { id: product.id };
   });
 
 export const adminListProducts = createServerFn({ method: "GET" })

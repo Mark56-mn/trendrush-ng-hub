@@ -3,11 +3,11 @@ import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { adminListProducts, upsertProduct, deleteProduct, importProductFromUrl } from "@/lib/admin.functions";
+import { adminListProducts, upsertProduct, deleteProduct } from "@/lib/admin.functions";
 import { listCategories } from "@/lib/shop.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/format";
-import { Pencil, Trash2, Plus, X, Upload, GripVertical, Star, Link as LinkIcon, Wand2 } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Upload, GripVertical, Star } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/products")({
   component: AdminProducts,
@@ -51,7 +51,6 @@ function AdminProducts() {
   const listFn = useServerFn(adminListProducts);
   const upsertFn = useServerFn(upsertProduct);
   const delFn = useServerFn(deleteProduct);
-  const importFn = useServerFn(importProductFromUrl);
 
   const { data: products } = useQuery({ queryKey: ["admin", "products"], queryFn: () => listFn() });
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => listCategories() });
@@ -60,8 +59,6 @@ function AdminProducts() {
   const [uploading, setUploading] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
-  const [productUrl, setProductUrl] = useState("");
-  const [exchangeRate, setExchangeRate] = useState("1600");
 
   function reorderImages(from: number, to: number) {
     if (!editing || from === to) return;
@@ -85,31 +82,6 @@ function AdminProducts() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "products"] }),
   });
 
-  const importProduct = useMutation({
-    mutationFn: (url: string) => importFn({ data: { url } }),
-    onSuccess: (draft) => {
-      const rate = Number(exchangeRate) || 0;
-      const convertedPrice = draft.detected_price && rate ? Math.round(draft.detected_price * rate) : 0;
-      const title = draft.title || "Imported product";
-      setEditing({
-        ...empty,
-        title,
-        slug:
-          draft.slug ||
-          title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) ||
-          "imported-product",
-        description: draft.description || "",
-        image_urls: draft.image_urls ?? [],
-        source_url: draft.source_url,
-        product_cost_naira: convertedPrice || null,
-        price_naira: convertedPrice,
-        import_notes: draft.detected_price
-          ? `Detected supplier price: ${draft.detected_currency ?? ""} ${draft.detected_price}`.trim()
-          : null,
-      });
-    },
-  });
-
   async function handleUpload(files: FileList | null) {
     if (!files || !editing) return;
     setUploading(true);
@@ -129,38 +101,6 @@ function AdminProducts() {
 
   return (
     <div>
-      <div className="mb-4 rounded-xl border border-border bg-card p-3 sm:p-4">
-        <div className="mb-2 flex items-center gap-2 font-display text-lg font-bold">
-          <Wand2 className="h-5 w-5 text-neon" /> Import product from link
-        </div>
-        <p className="mb-3 text-sm text-muted-foreground">
-          Paste a Temu, AliExpress, Amazon, Jumia, or other product page link. TrendRush will pull the title,
-          description, images, and any detected supplier price into a draft you can review before saving.
-        </p>
-        <div className="grid gap-2 sm:grid-cols-[1fr_150px_auto]">
-          <input
-            value={productUrl}
-            onChange={(e) => setProductUrl(e.target.value)}
-            placeholder="https://www.aliexpress.com/item/..."
-            className="min-w-0 rounded-md border border-input bg-input px-3 py-2 text-sm"
-          />
-          <input
-            value={exchangeRate}
-            onChange={(e) => setExchangeRate(e.target.value.replace(/[^0-9.]/g, ""))}
-            placeholder="₦ per 1 foreign unit"
-            className="rounded-md border border-input bg-input px-3 py-2 text-sm"
-          />
-          <button
-            onClick={() => productUrl && importProduct.mutate(productUrl)}
-            disabled={importProduct.isPending || !productUrl}
-            className="flex items-center justify-center gap-2 rounded-md bg-orange px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
-          >
-            <LinkIcon className="h-4 w-4" /> {importProduct.isPending ? "Importing…" : "Import"}
-          </button>
-        </div>
-        {importProduct.error && <div className="mt-2 text-sm text-destructive">{(importProduct.error as Error).message}</div>}
-      </div>
-
       <div className="mb-4 flex justify-end">
         <button
           onClick={() => setEditing({ ...empty })}
