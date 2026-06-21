@@ -92,7 +92,7 @@ function AdminSettings() {
           onChange={(v) => setForm({ ...form, hero_slogan: v })}
         />
         <Field
-          label="WhatsApp link (e.g. https://wa.me/2348012345678)"
+          label="WhatsApp link (e.g. https://wa.link/4scn2n)"
           value={form.whatsapp_link}
           onChange={(v) => setForm({ ...form, whatsapp_link: v })}
         />
