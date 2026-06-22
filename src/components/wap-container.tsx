@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -42,7 +44,7 @@ export function WAPContainer() {
     queryFn: async () => {
       const result = await fetchImportedProducts();
       if (result.success) {
-        return result.data || [];
+        return result.importedProducts || [];
       }
       throw new Error(result.error || 'Failed to fetch products');
     }
@@ -53,9 +55,9 @@ export function WAPContainer() {
   // Single product import mutation
   const singleImportMutation = useMutation({
     mutationFn: async (url: string) => {
-      const result = await importSingleProduct({ url });
+      const result = await importSingleProduct({ url } as any);
       if (!result.success) throw new Error(result.error);
-      return result.data;
+      return result.importedData;
     },
     onSuccess: () => {
       setSingleUrl('');
@@ -68,12 +70,12 @@ export function WAPContainer() {
   // Batch import mutation
   const batchImportMutation = useMutation({
     mutationFn: async (content: string) => {
-      const result = await importMultipleProducts({ content, isCSV: isCsvMode });
+      const result = await importMultipleProducts({ content, isCSV: isCsvMode } as any);
       if (!result.success) throw new Error(result.error);
       return result.results;
     },
     onSuccess: (results) => {
-      const successCount = results?.filter(r => r.status === 'success').length || 0;
+      const successCount = results?.filter((r: any) => r.status === 'success').length || 0;
       setSuccessMessage(`Successfully imported ${successCount} products!`);
       setBatchContent('');
       refetchProducts();
@@ -84,7 +86,7 @@ export function WAPContainer() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const result = await deleteImportedProduct({ id });
+      const result = await deleteImportedProduct({ id } as any);
       if (!result.success) throw new Error(result.error);
     },
     onSuccess: () => {
@@ -101,9 +103,9 @@ export function WAPContainer() {
         description: editData.description,
         price: editData.price,
         imageUrl: editData.image_url
-      });
+      } as any);
       if (!result.success) throw new Error(result.error);
-      return result.data;
+      return result.updatedData;
     },
     onSuccess: () => {
       setEditingId(null);
@@ -130,7 +132,7 @@ export function WAPContainer() {
     }
   };
 
-  const startEditing = (product: ImportedProduct) => {
+  const startEditing = (product: any) => {
     setEditingId(product.id);
     setEditData(product);
   };
@@ -259,7 +261,7 @@ export function WAPContainer() {
               {batchImportMutation.data && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Import Results:</p>
-                  {batchImportMutation.data.map((result, idx) => (
+                  {batchImportMutation.data.map((result: any, idx: number) => (
                     <div key={idx} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
                       <span className="truncate">{result.url}</span>
                       {result.status === 'success' ? (
@@ -293,7 +295,7 @@ export function WAPContainer() {
             <p className="text-center text-gray-500 py-8">No products imported yet</p>
           ) : (
             <div className="space-y-4">
-              {products.map((product: ImportedProduct) => (
+              {products.map((product: any) => (
                 <div key={product.id} className="border rounded-lg p-4 space-y-3">
                   {editingId === product.id ? (
                     // Edit Mode

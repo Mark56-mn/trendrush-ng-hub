@@ -1,12 +1,12 @@
 import * as cheerio from 'cheerio';
 
 export interface ScrapedProduct {
-  productName?: string;
+  title?: string;
   description?: string;
   price?: number;
   originalPrice?: number;
-  imageUrl?: string;
-  videoUrl?: string;
+  image?: string;
+  video?: string;
   platform: 'aliexpress' | 'temu' | 'amazon' | 'ebay' | 'generic';
   rawData: Record<string, unknown>;
 }
@@ -42,7 +42,7 @@ async function scrapeAliExpress(url: string): Promise<ScrapedProduct | null> {
     const $ = cheerio.load(html);
     
     // Extract product name from h1 or title
-    const productName = $('h1').first().text().trim() || 
+    const title = $('h1').first().text().trim() || 
                        $('title').text().split('-')[0].trim();
     
     // Extract price - AliExpress typically has price data in script tags
@@ -54,7 +54,7 @@ async function scrapeAliExpress(url: string): Promise<ScrapedProduct | null> {
     }
     
     // Extract image
-    const imageUrl = $('img[class*="product"]').first().attr('src') ||
+    const image = $('img[class*="product"]').first().attr('src') ||
                      $('img[class*="preview"]').first().attr('src') ||
                      $('img').first().attr('src');
     
@@ -62,9 +62,9 @@ async function scrapeAliExpress(url: string): Promise<ScrapedProduct | null> {
     const description = $('[class*="description"]').text().trim().substring(0, 500);
     
     return {
-      productName,
+      title,
       price,
-      imageUrl,
+      image,
       description,
       platform: 'aliexpress',
       rawData: {
@@ -95,7 +95,7 @@ async function scrapeTemu(url: string): Promise<ScrapedProduct | null> {
     const $ = cheerio.load(html);
     
     // Extract product name
-    const productName = $('h1').first().text().trim() || 
+    const title = $('h1').first().text().trim() || 
                        $('[class*="product-title"]').first().text().trim();
     
     // Extract price
@@ -110,7 +110,7 @@ async function scrapeTemu(url: string): Promise<ScrapedProduct | null> {
     });
     
     // Extract image
-    const imageUrl = $('img[class*="product"]').first().attr('src') ||
+    const image = $('img[class*="product"]').first().attr('src') ||
                      $('img[class*="main"]').first().attr('src') ||
                      $('img').first().attr('src');
     
@@ -118,9 +118,9 @@ async function scrapeTemu(url: string): Promise<ScrapedProduct | null> {
     const description = $('[class*="desc"]').text().trim().substring(0, 500);
     
     return {
-      productName,
+      title,
       price,
-      imageUrl,
+      image,
       description,
       platform: 'temu',
       rawData: {
@@ -151,7 +151,7 @@ async function scrapeAmazon(url: string): Promise<ScrapedProduct | null> {
     const $ = cheerio.load(html);
     
     // Extract product name
-    const productName = $('#productTitle').text().trim() || $('h1').first().text().trim();
+    const title = $('#productTitle').text().trim() || $('h1').first().text().trim();
     
     // Extract price
     let price: number | undefined;
@@ -162,15 +162,15 @@ async function scrapeAmazon(url: string): Promise<ScrapedProduct | null> {
     }
     
     // Extract image
-    const imageUrl = $('#landingImage').attr('src') || $('img[class*="a-dynamic-image"]').first().attr('src');
+    const image = $('#landingImage').attr('src') || $('img[class*="a-dynamic-image"]').first().attr('src');
     
     // Extract description
     const description = $('#feature-bullets').text().trim().substring(0, 500);
     
     return {
-      productName,
+      title,
       price,
-      imageUrl,
+      image,
       description,
       platform: 'amazon',
       rawData: {
@@ -201,7 +201,7 @@ async function scrapeGeneric(url: string): Promise<ScrapedProduct | null> {
     const $ = cheerio.load(html);
     
     // Extract product name from common selectors
-    const productName = $('h1').first().text().trim() || 
+    const title = $('h1').first().text().trim() || 
                        $('[class*="product-title"]').first().text().trim() ||
                        $('title').text().split('-')[0].trim();
     
@@ -214,16 +214,16 @@ async function scrapeGeneric(url: string): Promise<ScrapedProduct | null> {
     }
     
     // Extract image
-    const imageUrl = $('img').first().attr('src');
+    const image = $('img').first().attr('src');
     
     // Extract description
     const description = $('[class*="description"]').first().text().trim().substring(0, 500) ||
                        $('[class*="details"]').first().text().trim().substring(0, 500);
     
     return {
-      productName,
+      title,
       price,
-      imageUrl,
+      image,
       description,
       platform: 'generic',
       rawData: {
@@ -263,7 +263,7 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct | null>
   }
   
   // Fallback to generic scraper if platform-specific fails
-  if (!result || !result.productName) {
+  if (!result || !result.title) {
     result = await scrapeGeneric(url);
   }
   
@@ -279,4 +279,11 @@ export function normalizeUrl(url: string): string {
     normalized = 'https://' + normalized;
   }
   return normalized;
+}
+
+/**
+ * Alias for scrapeProduct for consistency in function naming
+ */
+export async function scrapeProductDetails(url: string): Promise<ScrapedProduct | null> {
+  return scrapeProduct(url);
 }

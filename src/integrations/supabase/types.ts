@@ -248,6 +248,68 @@ export type Database = {
         }
         Relationships: []
       }
+      imported_products: {
+        Row: {
+          created_at: string
+          description: string | null
+          error_message: string | null
+          id: string
+          image_url: string | null
+          original_price: number | null
+          platform: string
+          price: number | null
+          product_name: string | null
+          raw_data: Json | null
+          source_url: string
+          status: string
+          updated_at: string
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          original_price?: number | null
+          platform: string
+          price?: number | null
+          product_name?: string | null
+          raw_data?: Json | null
+          source_url: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          original_price?: number | null
+          platform?: string
+          price?: number | null
+          product_name?: string | null
+          raw_data?: Json | null
+          source_url?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imported_products_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

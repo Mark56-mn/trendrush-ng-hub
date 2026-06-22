@@ -1,30 +1,25 @@
-import { createServerFn } from '@tanstack/start';
-import { getServerEvent } from 'vinxi/http';
-import { supabaseServer } from './supabase-server';
-import { scrapeProduct, normalizeUrl, type ScrapedProduct } from './product-scraper';
+import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
+import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
+import { scrapeProductDetails, normalizeUrl } from './product-scraper';
 
 /**
  * Import a single product by URL
  */
-export const importSingleProduct = createServerFn(
-  { method: 'POST' },
-  async (data: { url: string }): Promise<{
+export const importSingleProduct = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ url: z.string().url() }).parse(input))
+  .handler(async ({ context, data }): Promise<{
     success: boolean;
-    data?: any;
+    importedData?: any;
     error?: string;
   }> => {
     try {
-      const event = getServerEvent();
-      const userId = event.context.auth?.user?.id;
-      
-      if (!userId) {
-        return { success: false, error: 'Unauthorized' };
-      }
-      
+      const userId = context.userId;
       const normalizedUrl = normalizeUrl(data.url);
       
       // Check if URL already imported by this user
-      const { data: existing } = await supabaseServer
+      const { data: existing } = await context.supabase
         .from('imported_products')
         .select('id')
         .eq('source_url', normalizedUrl)
@@ -36,27 +31,27 @@ export const importSingleProduct = createServerFn(
       }
       
       // Scrape product data
-      const scrapedData = await scrapeProduct(normalizedUrl);
+      const scrapedData = await scrapeProductDetails(normalizedUrl);
       
-      if (!scrapedData || !scrapedData.productName) {
+      if (!scrapedData || !scrapedData.title) {
         return { success: false, error: 'Could not extract product information from the URL' };
       }
       
       // Insert into database
-      const { data: imported, error } = await supabaseServer
+      const { data: imported, error } = await context.supabase
         .from('imported_products')
         .insert({
           user_id: userId,
           source_url: normalizedUrl,
           platform: scrapedData.platform,
-          product_name: scrapedData.productName,
+          product_name: scrapedData.title,
           description: scrapedData.description,
           price: scrapedData.price,
-          image_url: scrapedData.imageUrl,
-          video_url: scrapedData.videoUrl,
-          raw_data: scrapedData.rawData,
+          image_url: scrapedData.image,
+          video_url: scrapedData.video,
+          raw_data: scrapedData.rawData as any,
           status: 'imported'
-        })
+        } as any)
         .select()
         .single();
       
@@ -65,20 +60,20 @@ export const importSingleProduct = createServerFn(
         return { success: false, error: 'Failed to save product to database' };
       }
       
-      return { success: true, data: imported };
+      return { success: true, importedData: imported };
     } catch (error) {
       console.error('[WAP] Import single product error:', error);
       return { success: false, error: 'An error occurred during import' };
     }
-  }
-);
+  });
 
 /**
  * Import multiple products (CSV or newline-separated URLs)
  */
-export const importMultipleProducts = createServerFn(
-  { method: 'POST' },
-  async (data: { content: string; isCSV: boolean }): Promise<{
+export const importMultipleProducts = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ content: z.string(), isCSV: z.boolean() }).parse(input))
+  .handler(async ({ context, data }): Promise<{
     success: boolean;
     results?: Array<{
       url: string;
@@ -88,13 +83,7 @@ export const importMultipleProducts = createServerFn(
     error?: string;
   }> => {
     try {
-      const event = getServerEvent();
-      const userId = event.context.auth?.user?.id;
-      
-      if (!userId) {
-        return { success: false, error: 'Unauthorized' };
-      }
-      
+      const userId = context.userId;
       const results: Array<{
         url: string;
         status: 'success' | 'failed';
@@ -127,7 +116,7 @@ export const importMultipleProducts = createServerFn(
           const normalizedUrl = normalizeUrl(url);
           
           // Check if already imported
-          const { data: existing } = await supabaseServer
+          const { data: existing } = await context.supabase
             .from('imported_products')
             .select('id')
             .eq('source_url', normalizedUrl)
@@ -144,9 +133,9 @@ export const importMultipleProducts = createServerFn(
           }
           
           // Scrape product
-          const scrapedData = await scrapeProduct(normalizedUrl);
+          const scrapedData = await scrapeProductDetails(normalizedUrl);
           
-          if (!scrapedData || !scrapedData.productName) {
+          if (!scrapedData || !scrapedData.title) {
             results.push({
               url,
               status: 'failed',
@@ -156,20 +145,20 @@ export const importMultipleProducts = createServerFn(
           }
           
           // Insert into database
-          const { error } = await supabaseServer
+          const { error } = await context.supabase
             .from('imported_products')
             .insert({
               user_id: userId,
               source_url: normalizedUrl,
               platform: scrapedData.platform,
-              product_name: scrapedData.productName,
+              product_name: scrapedData.title,
               description: scrapedData.description,
               price: scrapedData.price,
-              image_url: scrapedData.imageUrl,
-              video_url: scrapedData.videoUrl,
-              raw_data: scrapedData.rawData,
+              image_url: scrapedData.image,
+              video_url: scrapedData.video,
+              raw_data: scrapedData.rawData as any,
               status: 'imported'
-            });
+            } as any);
           
           if (error) {
             results.push({
@@ -197,28 +186,22 @@ export const importMultipleProducts = createServerFn(
       console.error('[WAP] Import multiple products error:', error);
       return { success: false, error: 'An error occurred during batch import' };
     }
-  }
-);
+  });
 
 /**
  * Fetch imported products for current user
  */
-export const fetchImportedProducts = createServerFn(
-  { method: 'GET' },
-  async (): Promise<{
+export const fetchImportedProducts = createServerFn({ method: 'GET' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{
     success: boolean;
-    data?: any[];
+    importedProducts?: any[];
     error?: string;
   }> => {
     try {
-      const event = getServerEvent();
-      const userId = event.context.auth?.user?.id;
+      const userId = context.userId;
       
-      if (!userId) {
-        return { success: false, error: 'Unauthorized' };
-      }
-      
-      const { data, error } = await supabaseServer
+      const { data, error } = await context.supabase
         .from('imported_products')
         .select('*')
         .eq('user_id', userId)
@@ -229,32 +212,27 @@ export const fetchImportedProducts = createServerFn(
         return { success: false, error: 'Failed to fetch products' };
       }
       
-      return { success: true, data };
+      return { success: true, importedProducts: data };
     } catch (error) {
       console.error('[WAP] Fetch imported products error:', error);
       return { success: false, error: 'An error occurred' };
     }
-  }
-);
+  });
 
 /**
  * Delete an imported product
  */
-export const deleteImportedProduct = createServerFn(
-  { method: 'POST' },
-  async (data: { id: string }): Promise<{
+export const deleteImportedProduct = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }): Promise<{
     success: boolean;
     error?: string;
   }> => {
     try {
-      const event = getServerEvent();
-      const userId = event.context.auth?.user?.id;
+      const userId = context.userId;
       
-      if (!userId) {
-        return { success: false, error: 'Unauthorized' };
-      }
-      
-      const { error } = await supabaseServer
+      const { error } = await context.supabase
         .from('imported_products')
         .delete()
         .eq('id', data.id)
@@ -270,45 +248,42 @@ export const deleteImportedProduct = createServerFn(
       console.error('[WAP] Delete imported product error:', error);
       return { success: false, error: 'An error occurred' };
     }
-  }
-);
+  });
 
 /**
  * Update an imported product
  */
-export const updateImportedProduct = createServerFn(
-  { method: 'POST' },
-  async (data: {
-    id: string;
-    productName?: string;
-    description?: string;
-    price?: number;
-    imageUrl?: string;
-  }): Promise<{
+export const updateImportedProduct = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      productName: z.string().optional(),
+      description: z.string().optional(),
+      price: z.number().optional(),
+      imageUrl: z.string().optional()
+    }).parse(input)
+  )
+  .handler(async ({ context, data }): Promise<{
     success: boolean;
-    data?: any;
+    updatedData?: any;
     error?: string;
   }> => {
     try {
-      const event = getServerEvent();
-      const userId = event.context.auth?.user?.id;
+      const userId = context.userId;
       
-      if (!userId) {
-        return { success: false, error: 'Unauthorized' };
-      }
-      
-      const updateData: Record<string, unknown> = {
+      const updatePayload: Record<string, unknown> = {
         updated_at: new Date().toISOString()
       };
       
-      if (data.productName) updateData.product_name = data.productName;
-      if (data.description) updateData.description = data.description;
-      if (data.price !== undefined) updateData.price = data.price;
-      if (data.imageUrl) updateData.image_url = data.imageUrl;
+      if (data.productName) updatePayload.product_name = data.productName;
+      if (data.description) updatePayload.description = data.description;
+      if (data.price !== undefined) updatePayload.price = data.price;
+      if (data.imageUrl) updatePayload.image_url = data.imageUrl;
       
-      const { data: updated, error } = await supabaseServer
+      const { data: updated, error } = await context.supabase
         .from('imported_products')
-        .update(updateData)
+        .update(updatePayload as any)
         .eq('id', data.id)
         .eq('user_id', userId)
         .select()
@@ -319,10 +294,9 @@ export const updateImportedProduct = createServerFn(
         return { success: false, error: 'Failed to update product' };
       }
       
-      return { success: true, data: updated };
+      return { success: true, updatedData: updated };
     } catch (error) {
       console.error('[WAP] Update imported product error:', error);
       return { success: false, error: 'An error occurred' };
     }
-  }
-);
+  });
