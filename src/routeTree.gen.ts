@@ -20,6 +20,7 @@ import { Route as AuthenticatedOrdersRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as ApiPublicMoniepointWebhookRouteImport } from './routes/api/public/moniepoint-webhook'
+import { Route as AuthenticatedAdminWapContainerRouteImport } from './routes/_authenticated/admin/wap-container'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin/products'
 import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenticated/admin/orders'
@@ -79,6 +80,12 @@ const ApiPublicMoniepointWebhookRoute =
     path: '/api/public/moniepoint-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedAdminWapContainerRoute =
+  AuthenticatedAdminWapContainerRouteImport.update({
+    id: '/wap-container',
+    path: '/wap-container',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminSettingsRoute =
   AuthenticatedAdminSettingsRouteImport.update({
     id: '/settings',
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/wap-container': typeof AuthenticatedAdminWapContainerRoute
   '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
 }
@@ -124,6 +132,7 @@ export interface FileRoutesByTo {
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/wap-container': typeof AuthenticatedAdminWapContainerRoute
   '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
 }
@@ -141,6 +150,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/_authenticated/admin/wap-container': typeof AuthenticatedAdminWapContainerRoute
   '/api/public/moniepoint-webhook': typeof ApiPublicMoniepointWebhookRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
 }
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/products'
     | '/admin/settings'
+    | '/admin/wap-container'
     | '/api/public/moniepoint-webhook'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/products'
     | '/admin/settings'
+    | '/admin/wap-container'
     | '/api/public/moniepoint-webhook'
     | '/admin'
   id:
@@ -188,6 +200,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/orders'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/settings'
+    | '/_authenticated/admin/wap-container'
     | '/api/public/moniepoint-webhook'
     | '/_authenticated/admin/'
   fileRoutesById: FileRoutesById
@@ -282,6 +295,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMoniepointWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/wap-container': {
+      id: '/_authenticated/admin/wap-container'
+      path: '/wap-container'
+      fullPath: '/admin/wap-container'
+      preLoaderRoute: typeof AuthenticatedAdminWapContainerRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/settings': {
       id: '/_authenticated/admin/settings'
       path: '/settings'
@@ -310,6 +330,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminOrdersRoute: typeof AuthenticatedAdminOrdersRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
+  AuthenticatedAdminWapContainerRoute: typeof AuthenticatedAdminWapContainerRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
@@ -318,6 +339,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminOrdersRoute: AuthenticatedAdminOrdersRoute,
     AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
     AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
+    AuthenticatedAdminWapContainerRoute: AuthenticatedAdminWapContainerRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   }
 

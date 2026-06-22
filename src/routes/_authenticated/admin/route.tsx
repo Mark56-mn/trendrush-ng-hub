@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-r
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { isAdmin } from "@/lib/admin.functions";
-import { LayoutDashboard, Package, Receipt, Settings as Cog } from "lucide-react";
+import { LayoutDashboard, Package, Receipt, Settings as Cog, Download } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
@@ -28,6 +28,7 @@ function AdminLayout() {
   const tabs: { to: string; label: string; icon: typeof Package; exact?: boolean }[] = [
     { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
     { to: "/admin/products", label: "Products", icon: Package },
+    { to: "/admin/wap-container", label: "WAP Container", icon: Download },
     { to: "/admin/orders", label: "Orders", icon: Receipt },
     { to: "/admin/settings", label: "Settings", icon: Cog },
   ];
