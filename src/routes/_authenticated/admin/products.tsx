@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ import { adminListProducts, upsertProduct, deleteProduct } from "@/lib/admin.fun
 import { listCategories } from "@/lib/shop.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNaira } from "@/lib/format";
-import { Pencil, Trash2, Plus, X, Upload, GripVertical, Star } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Upload, GripVertical, Star, Palette } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/products")({
   component: AdminProducts,
@@ -39,6 +39,7 @@ const empty: Editing = {
 };
 
 function AdminProducts() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const listFn = useServerFn(adminListProducts);
   const upsertFn = useServerFn(upsertProduct);
@@ -141,7 +142,14 @@ function AdminProducts() {
                   )}
                   {p.is_trending && <span className="ml-2 text-orange">Trending</span>}
                 </td>
-                <td className="px-3 py-2 text-right">
+                <td className="px-3 py-2 text-right flex items-center justify-end gap-1">
+                  <button
+                    onClick={() => navigate({ to: "/admin/product-variants", search: { productId: p.id } })}
+                    className="rounded p-1 hover:bg-secondary text-orange"
+                    title="Manage color variants"
+                  >
+                    <Palette className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() =>
                       setEditing({

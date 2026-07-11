@@ -23,7 +23,9 @@ import { Route as ApiPublicMoniepointWebhookRouteImport } from './routes/api/pub
 import { Route as AuthenticatedAdminWapContainerRouteImport } from './routes/_authenticated/admin/wap-container'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin/products'
+import { Route as AuthenticatedAdminProductVariantsRouteImport } from './routes/_authenticated/admin/product-variants'
 import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenticated/admin/orders'
+import { Route as AuthenticatedAdminImportRouteImport } from './routes/_authenticated/admin/import'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -98,10 +100,22 @@ const AuthenticatedAdminProductsRoute =
     path: '/products',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminProductVariantsRoute =
+  AuthenticatedAdminProductVariantsRouteImport.update({
+    id: '/product-variants',
+    path: '/product-variants',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminOrdersRoute =
   AuthenticatedAdminOrdersRouteImport.update({
     id: '/orders',
     path: '/orders',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminImportRoute =
+  AuthenticatedAdminImportRouteImport.update({
+    id: '/import',
+    path: '/import',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 
@@ -114,7 +128,9 @@ export interface FileRoutesByFullPath {
   '/category/$slug': typeof CategorySlugRoute
   '/checkout/$orderId': typeof CheckoutOrderIdRoute
   '/product/$id': typeof ProductIdRoute
+  '/admin/import': typeof AuthenticatedAdminImportRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
+  '/admin/product-variants': typeof AuthenticatedAdminProductVariantsRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/wap-container': typeof AuthenticatedAdminWapContainerRoute
@@ -129,7 +145,9 @@ export interface FileRoutesByTo {
   '/category/$slug': typeof CategorySlugRoute
   '/checkout/$orderId': typeof CheckoutOrderIdRoute
   '/product/$id': typeof ProductIdRoute
+  '/admin/import': typeof AuthenticatedAdminImportRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
+  '/admin/product-variants': typeof AuthenticatedAdminProductVariantsRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/wap-container': typeof AuthenticatedAdminWapContainerRoute
@@ -147,7 +165,9 @@ export interface FileRoutesById {
   '/category/$slug': typeof CategorySlugRoute
   '/checkout/$orderId': typeof CheckoutOrderIdRoute
   '/product/$id': typeof ProductIdRoute
+  '/_authenticated/admin/import': typeof AuthenticatedAdminImportRoute
   '/_authenticated/admin/orders': typeof AuthenticatedAdminOrdersRoute
+  '/_authenticated/admin/product-variants': typeof AuthenticatedAdminProductVariantsRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/wap-container': typeof AuthenticatedAdminWapContainerRoute
@@ -165,7 +185,9 @@ export interface FileRouteTypes {
     | '/category/$slug'
     | '/checkout/$orderId'
     | '/product/$id'
+    | '/admin/import'
     | '/admin/orders'
+    | '/admin/product-variants'
     | '/admin/products'
     | '/admin/settings'
     | '/admin/wap-container'
@@ -180,7 +202,9 @@ export interface FileRouteTypes {
     | '/category/$slug'
     | '/checkout/$orderId'
     | '/product/$id'
+    | '/admin/import'
     | '/admin/orders'
+    | '/admin/product-variants'
     | '/admin/products'
     | '/admin/settings'
     | '/admin/wap-container'
@@ -197,7 +221,9 @@ export interface FileRouteTypes {
     | '/category/$slug'
     | '/checkout/$orderId'
     | '/product/$id'
+    | '/_authenticated/admin/import'
     | '/_authenticated/admin/orders'
+    | '/_authenticated/admin/product-variants'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/wap-container'
@@ -316,6 +342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminProductsRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/product-variants': {
+      id: '/_authenticated/admin/product-variants'
+      path: '/product-variants'
+      fullPath: '/admin/product-variants'
+      preLoaderRoute: typeof AuthenticatedAdminProductVariantsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/orders': {
       id: '/_authenticated/admin/orders'
       path: '/orders'
@@ -323,11 +356,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminOrdersRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/import': {
+      id: '/_authenticated/admin/import'
+      path: '/import'
+      fullPath: '/admin/import'
+      preLoaderRoute: typeof AuthenticatedAdminImportRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminImportRoute: typeof AuthenticatedAdminImportRoute
   AuthenticatedAdminOrdersRoute: typeof AuthenticatedAdminOrdersRoute
+  AuthenticatedAdminProductVariantsRoute: typeof AuthenticatedAdminProductVariantsRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminWapContainerRoute: typeof AuthenticatedAdminWapContainerRoute
@@ -336,7 +378,10 @@ interface AuthenticatedAdminRouteRouteChildren {
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminImportRoute: AuthenticatedAdminImportRoute,
     AuthenticatedAdminOrdersRoute: AuthenticatedAdminOrdersRoute,
+    AuthenticatedAdminProductVariantsRoute:
+      AuthenticatedAdminProductVariantsRoute,
     AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
     AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
     AuthenticatedAdminWapContainerRoute: AuthenticatedAdminWapContainerRoute,

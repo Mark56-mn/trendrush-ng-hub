@@ -75,3 +75,21 @@ export const getProduct = createServerFn({ method: "GET" })
     const signed_image_urls = await signImagePaths(supabase, "product-images", row.image_urls);
     return { ...row, signed_image_urls };
   });
+
+export const getProductVariants = createServerFn({ method: "GET" })
+  .inputValidator((input: { productId: string }) => z.object({ productId: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const supabase = getPublicSupabase();
+    const { data: variants } = await supabase
+      .from("product_variants")
+      .select("*")
+      .eq("product_id", data.productId)
+      .order("sort_order", { ascending: true });
+    if (!variants) return [];
+    return Promise.all(
+      variants.map(async (v) => ({
+        ...v,
+        signed_image_urls: await signImagePaths(supabase, "product-images", v.image_urls || []),
+      })),
+    );
+  });
