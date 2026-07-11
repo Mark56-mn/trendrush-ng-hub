@@ -1,22 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { getSettings } from "@/lib/shop.functions";
 import { updateSettings } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload } from "lucide-react";
+import { Upload, Landmark } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
   component: AdminSettings,
 });
 
 type Form = {
-  bank_name: string;
-  account_number: string;
-  account_name: string;
-  bank_webhook_url: string;
-  whatsapp_link: string;
+  whatsapp_phone: string;
   hero_slogan: string;
   logo_url: string;
   banner_url: string;
@@ -30,11 +26,7 @@ function AdminSettings() {
   const saveFn = useServerFn(updateSettings);
   const { data } = useQuery({ queryKey: ["settings"], queryFn: () => getFn() });
   const [form, setForm] = useState<Form>({
-    bank_name: "",
-    account_number: "",
-    account_name: "",
-    bank_webhook_url: "",
-    whatsapp_link: "",
+    whatsapp_phone: "",
     hero_slogan: "",
     logo_url: "",
     banner_url: "",
@@ -46,11 +38,7 @@ function AdminSettings() {
   useEffect(() => {
     if (data)
       setForm({
-        bank_name: data.bank_name ?? "",
-        account_number: data.account_number ?? "",
-        account_name: data.account_name ?? "",
-        bank_webhook_url: data.bank_webhook_url ?? "",
-        whatsapp_link: data.whatsapp_link ?? "",
+        whatsapp_phone: data.whatsapp_phone ?? "",
         hero_slogan: data.hero_slogan ?? "",
         logo_url: data.logo_url ?? "",
         banner_url: data.banner_url ?? "",
@@ -79,37 +67,37 @@ function AdminSettings() {
   }
 
   return (
-    <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
-      <Section title="Payment (Moniepoint bank transfer)">
-        <Field label="Bank name" value={form.bank_name} onChange={(v) => setForm({ ...form, bank_name: v })} />
-        <Field
-          label="Account number"
-          value={form.account_number}
-          onChange={(v) => setForm({ ...form, account_number: v })}
-        />
-        <Field
-          label="Account name"
-          value={form.account_name}
-          onChange={(v) => setForm({ ...form, account_name: v })}
-        />
-        <Field
-          label="Bank webhook URL"
-          value={form.bank_webhook_url}
-          onChange={(v) => setForm({ ...form, bank_webhook_url: v })}
-          placeholder="https://api.example.com/webhook/bank"
-        />
-      </Section>
+    <div className="space-y-6">
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Landmark className="h-5 w-5 text-neon" />
+            <div>
+              <h3 className="font-semibold">Bank Account Details</h3>
+              <p className="text-xs text-muted-foreground">Manage your payment bank account</p>
+            </div>
+          </div>
+          <Link
+            to="/admin/bank-details"
+            className="rounded-md bg-neon px-3 py-1.5 text-xs font-bold text-neon-foreground hover:bg-neon/90"
+          >
+            Manage
+          </Link>
+        </div>
+      </div>
 
-      <Section title="Brand">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
+        <Section title="Brand">
         <Field
           label="Hero slogan"
           value={form.hero_slogan}
           onChange={(v) => setForm({ ...form, hero_slogan: v })}
         />
         <Field
-          label="WhatsApp link (e.g. https://wa.me/2348012345678)"
-          value={form.whatsapp_link}
-          onChange={(v) => setForm({ ...form, whatsapp_link: v })}
+          label="WhatsApp phone number (e.g. 2348012345678)"
+          value={form.whatsapp_phone}
+          onChange={(v) => setForm({ ...form, whatsapp_phone: v })}
+          placeholder="Enter phone without + or spaces"
         />
         <Uploader
           label="Logo"
@@ -149,6 +137,7 @@ function AdminSettings() {
           {save.isPending ? "Saving…" : saved ? "✓ Saved" : "Save settings"}
         </button>
         {save.error && <div className="mt-2 text-sm text-destructive">{(save.error as Error).message}</div>}
+        </div>
       </div>
     </div>
   );
