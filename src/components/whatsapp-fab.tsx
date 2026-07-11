@@ -1,14 +1,15 @@
 import { MessageCircle } from "lucide-react";
 
-export function WhatsAppFab({ link }: { link?: string | null }) {
-  const href = link && link.trim().length > 0 ? link : "https://wa.me/2348000000000";
-  const url = new URL(href);
-  if (!url.searchParams.get("text")) {
-    url.searchParams.set("text", "Hello, I want to ask about this product");
+export function WhatsAppFab({ phone }: { phone?: string | null }) {
+  if (!phone || phone.trim().length === 0) {
+    return null;
   }
+  const cleanPhone = phone.trim().replace(/\D/g, "");
+  const href = `https://wa.me/${cleanPhone}?text=Hello, I want to ask about this product`;
+  
   return (
     <a
-      href={url.toString()}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat on WhatsApp"

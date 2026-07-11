@@ -158,7 +158,7 @@ function Shell() {
       <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground">
         © {new Date().getFullYear()} TrendRush NG · PlugMarket · HotPick NG
       </footer>
-      <WhatsAppFab link={settings?.whatsapp_link} />
+      <WhatsAppFab phone={settings?.whatsapp_phone} />
     </div>
   );
 }

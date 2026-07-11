@@ -85,17 +85,10 @@ function ProductPage() {
   }
 
   const waLink = (() => {
-    const base = settings?.whatsapp_link || "https://wa.me/2348000000000";
-    try {
-      const u = new URL(base);
-      u.searchParams.set(
-        "text",
-        `Hello, I want to ask about ${product.title} (₦${product.price_naira.toLocaleString()})`,
-      );
-      return u.toString();
-    } catch {
-      return base;
-    }
+    if (!settings?.whatsapp_phone) return null;
+    const cleanPhone = settings.whatsapp_phone.trim().replace(/\D/g, "");
+    const text = `Hello, I want to ask about ${product.title} (₦${product.price_naira.toLocaleString()})`;
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
   })();
 
   return (
@@ -239,14 +232,17 @@ function BuyButtons({
         {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
         Buy Now
       </button>
-      <a
-        href={waLink}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-center gap-2 rounded-md border border-[#25D366] bg-[#25D366]/10 px-4 py-3 font-bold text-[#25D366]"
-      >
-        <MessageCircle className="h-4 w-4" /> WhatsApp
-      </a>
+              {waLink && (
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex gap-2 rounded-lg border border-border px-4 py-3 text-center font-semibold text-emerald-500 transition hover:bg-emerald-500/10"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                  WhatsApp
+                </a>
+              )}
     </>
   );
 }

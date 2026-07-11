@@ -162,16 +162,30 @@ export const updateSettings = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        bank_name: z.string().trim().max(120).nullable().optional(),
-        account_number: z.string().trim().max(40).nullable().optional(),
-        account_name: z.string().trim().max(120).nullable().optional(),
-        bank_webhook_url: z.string().trim().url().max(500).nullable().optional(),
-        whatsapp_link: z.string().trim().url().max(500).nullable().optional(),
+        whatsapp_phone: z.string().trim().max(20).nullable().optional(),
         logo_url: z.string().trim().max(500).nullable().optional(),
         banner_url: z.string().trim().max(500).nullable().optional(),
         hero_slogan: z.string().trim().max(200).nullable().optional(),
         rapidapi_key: z.string().trim().max(500).nullable().optional(),
         rapidapi_host: z.string().trim().max(500).nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { error } = await context.supabase.from("site_settings").update(data).eq("id", 1);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const updateBankDetails = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        bank_name: z.string().trim().max(120).nullable().optional(),
+        account_number: z.string().trim().max(40).nullable().optional(),
+        account_name: z.string().trim().max(120).nullable().optional(),
       })
       .parse(input),
   )
