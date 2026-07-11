@@ -15,6 +15,7 @@ type Form = {
   bank_name: string;
   account_number: string;
   account_name: string;
+  bank_webhook_url: string;
   whatsapp_link: string;
   hero_slogan: string;
   logo_url: string;
@@ -30,6 +31,7 @@ function AdminSettings() {
     bank_name: "",
     account_number: "",
     account_name: "",
+    bank_webhook_url: "",
     whatsapp_link: "",
     hero_slogan: "",
     logo_url: "",
@@ -43,6 +45,7 @@ function AdminSettings() {
         bank_name: data.bank_name ?? "",
         account_number: data.account_number ?? "",
         account_name: data.account_name ?? "",
+        bank_webhook_url: data.bank_webhook_url ?? "",
         whatsapp_link: data.whatsapp_link ?? "",
         hero_slogan: data.hero_slogan ?? "",
         logo_url: data.logo_url ?? "",
@@ -70,7 +73,7 @@ function AdminSettings() {
   }
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2">
+    <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
       <Section title="Payment (Moniepoint bank transfer)">
         <Field label="Bank name" value={form.bank_name} onChange={(v) => setForm({ ...form, bank_name: v })} />
         <Field
@@ -82,6 +85,12 @@ function AdminSettings() {
           label="Account name"
           value={form.account_name}
           onChange={(v) => setForm({ ...form, account_name: v })}
+        />
+        <Field
+          label="Bank webhook URL"
+          value={form.bank_webhook_url}
+          onChange={(v) => setForm({ ...form, bank_webhook_url: v })}
+          placeholder="https://api.example.com/webhook/bank"
         />
       </Section>
 
@@ -133,13 +142,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div>
       <label className="text-xs font-semibold uppercase text-muted-foreground">{label}</label>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
         className="mt-1 w-full rounded-md border border-input bg-input px-3 py-2 text-sm"
       />
     </div>
