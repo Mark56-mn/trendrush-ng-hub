@@ -20,6 +20,8 @@ type Form = {
   hero_slogan: string;
   logo_url: string;
   banner_url: string;
+  rapidapi_key: string;
+  rapidapi_host: string;
 };
 
 function AdminSettings() {
@@ -36,6 +38,8 @@ function AdminSettings() {
     hero_slogan: "",
     logo_url: "",
     banner_url: "",
+    rapidapi_key: "",
+    rapidapi_host: "",
   });
   const [saved, setSaved] = useState(false);
 
@@ -50,6 +54,8 @@ function AdminSettings() {
         hero_slogan: data.hero_slogan ?? "",
         logo_url: data.logo_url ?? "",
         banner_url: data.banner_url ?? "",
+        rapidapi_key: data.rapidapi_key ?? "",
+        rapidapi_host: data.rapidapi_host ?? "",
       });
   }, [data]);
 
@@ -119,11 +125,26 @@ function AdminSettings() {
         />
       </Section>
 
-      <div className="sm:col-span-2">
+      <Section title="Rapid API (Product Import)">
+        <Field
+          label="Rapid API Key"
+          value={form.rapidapi_key}
+          onChange={(v) => setForm({ ...form, rapidapi_key: v })}
+          placeholder="Your Rapid API key"
+        />
+        <Field
+          label="Rapid API Host"
+          value={form.rapidapi_host}
+          onChange={(v) => setForm({ ...form, rapidapi_host: v })}
+          placeholder="e.g., api.example.rapidapi.com"
+        />
+      </Section>
+
+      <div className="col-span-1 sm:col-span-2">
         <button
           onClick={() => save.mutate()}
           disabled={save.isPending}
-          className="w-full rounded-md bg-neon px-4 py-3 font-bold text-neon-foreground disabled:opacity-50"
+          className="w-full rounded-md bg-neon px-4 py-3 font-bold text-neon-foreground disabled:opacity-50 transition-opacity"
         >
           {save.isPending ? "Saving…" : saved ? "✓ Saved" : "Save settings"}
         </button>
